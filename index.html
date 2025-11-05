@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Drainage System Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <!-- Leaflet.js CDN -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        crossorigin=""></script>
+</head>
+<body>
+
+    <header class="header">
+        <h1>Smart Drainage System Dashboard</h1>
+        <div class="header-controls">
+            <button id="darkModeToggle" class="dark-mode-toggle">🌙 Dark Mode</button>
+            <div class="header-info">
+                <span id="system-status" class="status-indicator status-ok">System Status: OK</span>
+                <span id="last-update">Last Update: --</span>
+            </div>
+        </div>
+    </header>
+
+    <nav class="main-nav">
+        <a href="#dashboard" class="nav-link active" data-page="dashboard">🏠 Dashboard</a>
+        <a href="#rainfall" class="nav-link" data-page="rainfall">🌧️ Rainfall Data</a>
+        <a href="#waterlevel" class="nav-link" data-page="waterlevel">🌊 Water Level Data</a>
+        <a href="#temperature" class="nav-link" data-page="temperature">🌡️ Temperature Data</a>
+    </nav>
+    <main class="dashboard-container">
+        <div id="app-content">
+            <!-- Content will be dynamically loaded here -->
+        </div>
+
+        <!-- Dashboard Content Template -->
+        <template id="dashboard-template">
+            <!-- Live Data Cards -->
+            <section class="data-cards-section">
+                <div class="card data-card rain-card">
+                    <div class="card-animation-bg rain-animation-bg"></div>
+                    <div class="card-content">
+                        <h3>Rainfall 🌧️</h3>
+                        <p id="rain" class="data-value">--</p>
+                        <span class="unit">mm</span>
+                    </div>
+                </div>
+                <div class="card data-card water-card">
+                    <div class="card-animation-bg water-animation-bg"></div>
+                    <div class="card-content">
+                        <h3>Water Level 🌊</h3>
+                        <p id="water" class="data-value">--</p>
+                        <span class="unit">cm</span>
+                    </div>
+                </div>
+                <div class="card data-card temp-card">
+                    <div class="card-animation-bg temp-animation-bg"></div>
+                    <div class="card-content">
+                        <h3>Temperature 🌡️</h3>
+                        <p id="temp" class="data-value">--</p>
+                        <span class="unit">°C</span>
+                    </div>
+                </div>
+                <div class="card data-card ai-risk-card">
+                    <h3>AI Flood Risk 🔮</h3>
+                    <p id="risk" class="data-value risk-level">--</p>
+                    <p id="ai-message" class="ai-message">Analyzing current conditions...</p>
+                </div>
+            </section>
+
+            <!-- AI Recommendations Section -->
+            <section class="ai-recommendation-section">
+                <div class="card ai-recommendation-card">
+                    <h2>AI Recommendations & Ideas 💡 (AI Feature)</h2>
+                    <p id="ai-recommendation" class="ai-recommendation-text">Awaiting analysis...</p>
+                </div>
+            </section>
+
+            <!-- Charts Section -->
+            <section class="charts-section">
+                <div class="card chart-card">
+                    <h2>Rainfall Trend (Last 24h)</h2>
+                    <canvas id="rainChart"></canvas>
+                </div>
+                <div class="card chart-card">
+                    <h2>Water Level Trend (Last 24h)</h2>
+                    <canvas id="waterChart"></canvas>
+                </div>
+            </section>
+
+            <!-- Alerts and Map Section -->
+            <section class="alerts-map-section">
+                <div class="card alerts-card">
+                    <h2>Active Alerts 🚨</h2>
+                    <table>
+                        <thead>
+                            <tr><th>Time</th><th>Zone</th><th>Message</th><th>Risk</th></tr>
+                        </thead>
+                        <tbody id="alertTable">
+                            <tr><td colspan="4">No active alerts.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="card map-card">
+                    <h2>Sensor Locations Map 🗺️</h2>
+                    <div class="location-check-container">
+                        <input type="text" id="locationInput" placeholder="Enter location (e.g., 'Zone 1')">
+                        <button id="checkLocationBtn">Check Safety</button>
+                    </div>
+                    <div id="locationSafetyResult" class="safety-result"></div>
+                    <div id="map" style="height: 80%;"></div>
+                </div>
+            </section>
+
+            <!-- About/Team Section -->
+            <section class="about-section">
+                <div class="card">
+                    <h2>About the Project</h2>
+                    <p>This Smart Drainage System was developed by **Team AR Galaxy** from REC Banda under Civil Innovation and Technology Cell, NIT Agartala.</p>
+                    <p>Technologies used: IoT (ESP32), AI (GPT/LSTM), and Web Dashboard (HTML/CSS/JS/Chart.js/Leaflet.js).</p>
+                </div>
+            </section>
+        </template>
+
+        <!-- Rainfall Page Template -->
+        <template id="rainfall-template">
+            <section class="full-page-data-section">
+                <h1>🌧️ Detailed Rainfall Data</h1>
+                <p>This page shows comprehensive, dynamic rainfall data, including historical trends, intensity maps, and predictive analysis.</p>
+                <div class="card chart-card full-width-chart">
+                    <h2>Rainfall History (Last 7 Days)</h2>
+                    <canvas id="fullRainChart"></canvas>
+                </div>
+                <div class="card data-card rain-card">
+                    <div class="card-animation-bg rain-animation-bg"></div>
+                    <div class="card-content">
+                        <h3>Current Intensity</h3>
+                        <p id="currentRainIntensity" class="data-value">--</p>
+                        <span class="unit">mm/hr</span>
+                    </div>
+                </div>
+                <div class="card data-card rain-card">
+                    <div class="card-animation-bg rain-animation-bg"></div>
+                    <div class="card-content">
+                        <h3>24h Total</h3>
+                        <p id="totalRain24h" class="data-value">--</p>
+                        <span class="unit">mm</span>
+                    </div>
+                </div>
+            </section>
+        </template>
+
+        <!-- Water Level Page Template -->
+        <template id="waterlevel-template">
+            <section class="full-page-data-section">
+                <h1>🌊 Detailed Water Level Data</h1>
+                <p>This page shows comprehensive, dynamic water level data, including sensor readings, critical thresholds, and flow rate analysis.</p>
+                <div class="card chart-card full-width-chart">
+                    <h2>Water Level History (Last 7 Days)</h2>
+                    <canvas id="fullWaterChart"></canvas>
+                </div>
+                <div class="card data-card water-card">
+                    <div class="card-animation-bg water-animation-bg"></div>
+                    <div class="card-content">
+                        <h3>Average Level</h3>
+                        <p id="avgWaterLevel" class="data-value">--</p>
+                        <span class="unit">cm</span>
+                    </div>
+                </div>
+                <div class="card data-card water-card">
+                    <div class="card-animation-bg water-animation-bg"></div>
+                    <div class="card-content">
+                        <h3>Critical Threshold</h3>
+                        <p id="criticalWaterLevel" class="data-value">75.0</p>
+                        <span class="unit">cm</span>
+                    </div>
+                </div>
+            </section>
+        </template>
+
+        <!-- Temperature Page Template -->
+        <template id="temperature-template">
+            <section class="full-page-data-section">
+                <h1>🌡️ Detailed Temperature Data</h1>
+                <p>This page shows comprehensive, dynamic temperature data, including ambient and water temperature trends, which can indicate system health or environmental factors.</p>
+                <div class="card chart-card full-width-chart">
+                    <h2>Temperature History (Last 7 Days)</h2>
+                    <canvas id="fullTempChart"></canvas>
+                </div>
+                <div class="card data-card temp-card">
+                    <div class="card-animation-bg temp-animation-bg"></div>
+                    <div class="card-content">
+                        <h3>Ambient Temp</h3>
+                        <p id="ambientTemp" class="data-value">--</p>
+                        <span class="unit">°C</span>
+                    </div>
+                </div>
+                <div class="card data-card temp-card">
+                    <div class="card-animation-bg temp-animation-bg"></div>
+                    <div class="card-content">
+                        <h3>Water Temp</h3>
+                        <p id="waterTemp" class="data-value">--</p>
+                        <span class="unit">°C</span>
+                    </div>
+                </div>
+            </section>
+        </template>
+    </main>
+
+    <footer class="footer">
+        <p>&copy; 2025 Team AR Galaxy | NIT Agartala</p>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>

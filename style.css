@@ -1,0 +1,688 @@
+/* Global Styles */
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #f4f7f6;
+    color: #333;
+    line-height: 1.6;
+}
+
+/* Header */
+.header {
+    background-color: #007bff;
+    color: white;
+    padding: 20px 40px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.header-controls {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.dark-mode-toggle {
+    background-color: #fff;
+    color: #007bff;
+    border: 1px solid #007bff;
+    padding: 8px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background-color 0.2s, color 0.2s;
+}
+
+.dark-mode-toggle:hover {
+    background-color: #e9ecef;
+}
+
+.header h1 {
+    margin: 0;
+    font-size: 1.8em;
+}
+
+.header-info {
+    display: flex;
+    gap: 20px;
+    font-size: 0.9em;
+}
+
+.status-indicator {
+    padding: 5px 10px;
+    border-radius: 5px;
+    font-weight: bold;
+}
+
+.status-ok {
+    background-color: #28a745; /* Green */
+}
+
+.status-alert {
+    background-color: #ffc107; /* Yellow */
+    color: #333;
+}
+
+.status-critical {
+    background-color: #dc3545; /* Red */
+}
+
+/* Main Dashboard Layout */
+.dashboard-container {
+    padding: 20px 40px;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+/* Navigation Bar Styles */
+.main-nav {
+    display: flex;
+    justify-content: center;
+    gap: 30px;
+    padding: 15px 40px;
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #e9ecef;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.main-nav .nav-link {
+    text-decoration: none;
+    color: #007bff;
+    font-weight: 600;
+    padding: 5px 10px;
+    border-radius: 4px;
+    transition: background-color 0.2s, color 0.2s;
+}
+
+.main-nav .nav-link:hover {
+    background-color: #e9ecef;
+}
+
+.main-nav .nav-link.active {
+    background-color: #007bff;
+    color: white;
+}
+
+/* Full Page Data Layout */
+.full-page-data-section {
+    padding: 20px 0;
+}
+
+.full-page-data-section h1 {
+    font-size: 2em;
+    margin-bottom: 10px;
+    color: #007bff;
+}
+
+.full-page-data-section p {
+    margin-bottom: 20px;
+    color: #6c757d;
+}
+
+.full-width-chart {
+    grid-column: 1 / -1; /* Span full width in grid layout */
+    height: 500px;
+    margin-bottom: 30px;
+}
+
+/* Adjustments for Dark Mode */
+body.dark-mode .main-nav {
+    background-color: #0d1117; /* GitHub Dark Background */
+    border-bottom: 1px solid #30363d;
+}
+
+body.dark-mode .main-nav .nav-link {
+    color: #58a6ff; /* GitHub Accent Blue */
+}
+
+body.dark-mode .main-nav .nav-link:hover {
+    background-color: #30363d;
+}
+
+body.dark-mode .main-nav .nav-link.active {
+    background-color: #58a6ff;
+    color: #0d1117; /* Dark text on active link */
+}
+
+body.dark-mode .full-page-data-section h1 {
+    color: #4da6ff;
+}
+
+body.dark-mode .full-page-data-section p {
+    color: #a0a0a0;
+}
+
+/* Cards */
+.card {
+    background-color: white;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+    margin-bottom: 20px;
+}
+
+.card h2, .card h3 {
+    margin-top: 0;
+    color: #007bff;
+}
+
+/* Data Cards Section */
+.data-cards-section {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.data-card {
+    text-align: center;
+    position: relative; /* For animation background */
+    overflow: hidden; /* Keep animations contained */
+}
+
+.card-content {
+    position: relative;
+    z-index: 2; /* Ensure content is above animation */
+    padding: 20px; /* Restore padding lost by moving content inside */
+    /* Reset text alignment if needed, but data-card handles it */
+}
+
+/* Reset padding for data-card since content now has padding */
+.card.data-card {
+    padding: 0;
+}
+
+.data-value {
+    font-size: 2.5em;
+    font-weight: bold;
+    margin: 10px 0 5px 0;
+    color: #333;
+}
+
+.unit {
+    font-size: 0.9em;
+    color: #6c757d;
+}
+
+.ai-risk-card {
+    background-color: #e9f7ff; /* Light blue background */
+    border: 1px solid #007bff;
+}
+
+.risk-level {
+    font-size: 3em;
+    color: #007bff;
+}
+
+.ai-message {
+    font-style: italic;
+    color: #6c757d;
+}
+
+/* Charts Section */
+.charts-section, .full-page-data-section .data-cards-section {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.chart-card {
+    height: 400px; /* Set a fixed height for chart cards */
+}
+
+@media (max-width: 900px) {
+    .charts-section {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Alerts and Map Section */
+.alerts-map-section {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+@media (max-width: 1200px) {
+    .alerts-map-section {
+        grid-template-columns: 1fr;
+    }
+    .map-card {
+        height: 400px; /* Ensure map has height on smaller screens */
+    }
+}
+
+.alerts-card table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+}
+
+.alerts-card th, .alerts-card td {
+    padding: 12px 15px;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+}
+
+.alerts-card th {
+    background-color: #f8f9fa;
+    color: #007bff;
+    font-weight: 600;
+}
+
+.alerts-card tr:hover {
+    background-color: #f1f1f1;
+}
+
+.map-card {
+    height: 550px; /* Increased height for map and search feature */
+    padding: 0; /* Remove padding for map to fill card */
+}
+
+.map-card h2 {
+    padding: 20px 20px 0 20px;
+    margin-bottom: 10px;
+}
+
+#map {
+    border-radius: 0 0 8px 8px;
+}
+
+/* AI Recommendation Section */
+.ai-recommendation-section {
+    margin-bottom: 30px;
+}
+
+.ai-recommendation-card {
+    background-color: #fff3cd; /* Light yellow/gold for attention */
+    border: 1px solid #ffc107;
+}
+
+.ai-recommendation-card h2 {
+    color: #856404; /* Darker text for contrast */
+}
+
+.ai-recommendation-text {
+    font-size: 1.1em;
+    font-weight: 500;
+    color: #333;
+    margin-top: 15px;
+}
+
+/* About Section */
+.about-section p {
+    margin-bottom: 10px;
+}
+
+/* Footer */
+.footer {
+    text-align: center;
+    padding: 15px;
+    background-color: #343a40;
+    color: white;
+    font-size: 0.8em;
+}
+/* Location Check Feature Styles */
+.location-check-container {
+    display: flex;
+    gap: 10px;
+    padding: 10px 20px;
+    border-bottom: 1px solid #eee;
+}
+
+.location-check-container input[type="text"] {
+    flex-grow: 1;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+.location-check-container button {
+    padding: 8px 15px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.location-check-container button:hover {
+    background-color: #0056b3;
+}
+
+.safety-result {
+    padding: 10px 20px;
+    font-weight: bold;
+    min-height: 20px;
+    margin-top: 10px;
+    border-radius: 4px;
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+.safety-safe {
+    color: #155724; /* Dark green text */
+    background-color: #d4edda; /* Light green background */
+    border: 1px solid #c3e6cb;
+}
+
+.safety-unsafe {
+    color: #721c24; /* Dark red text */
+    background-color: #f8d7da; /* Light red background */
+    border: 1px solid #f5c6cb;
+    animation: pulse-alert 1.5s infinite; /* Add a visual pulse */
+}
+
+.safety-unknown {
+    color: #856404; /* Dark yellow text */
+    background-color: #fff3cd; /* Light yellow background */
+    border: 1px solid #ffeeba;
+}
+
+/* Keyframe for alert pulse */
+@keyframes pulse-alert {
+    0% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.4); }
+    70% { box-shadow: 0 0 0 10px rgba(220, 53, 69, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); }
+}
+
+/* --- Dark Mode Styles --- */
+
+body.dark-mode {
+    background-color: #0d1117; /* GitHub Dark Background */
+    color: #c9d1d9; /* GitHub Text Color */
+}
+
+body.dark-mode .header {
+    background-color: #161b22; /* GitHub Surface Color */
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+body.dark-mode .card {
+    background-color: #161b22; /* GitHub Surface Color */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+    border: 1px solid #30363d;
+}
+
+body.dark-mode .card h2, body.dark-mode .card h3 {
+    color: #58a6ff; /* GitHub Accent Blue */
+}
+
+body.dark-mode .data-value {
+    color: #c9d1d9;
+}
+
+body.dark-mode .unit, body.dark-mode .ai-message {
+    color: #8b949e; /* Slightly darker text */
+}
+
+body.dark-mode .ai-risk-card {
+    background-color: #161b22; /* Use surface color for consistency */
+    border: 1px solid #58a6ff;
+}
+
+body.dark-mode .risk-level {
+    color: #58a6ff;
+}
+
+body.dark-mode .ai-recommendation-card {
+    background-color: #161b22; /* Use surface color for consistency */
+    border: 1px solid #e3b341; /* Yellow/Gold for warning */
+}
+
+body.dark-mode .ai-recommendation-card h2 {
+    color: #e3b341;
+}
+
+body.dark-mode .alerts-card th {
+    background-color: #161b22;
+    color: #58a6ff;
+}
+
+body.dark-mode .alerts-card td {
+    border-bottom: 1px solid #30363d;
+}
+
+body.dark-mode .alerts-card tr:hover {
+    background-color: #30363d;
+}
+
+body.dark-mode .footer {
+    background-color: #0d1117;
+    color: #8b949e;
+}
+
+body.dark-mode .location-check-container input[type="text"] {
+    background-color: #0d1117;
+    color: #c9d1d9;
+    border: 1px solid #30363d;
+}
+
+body.dark-mode .safety-safe {
+    color: #c3e6cb; /* Light green text */
+    background-color: #161b22; /* Dark background */
+    border: 1px solid #28a745; /* Green border */
+}
+
+body.dark-mode .safety-unsafe {
+    color: #f5c6cb; /* Light red text */
+    background-color: #161b22; /* Dark background */
+    border: 1px solid #dc3545; /* Red border */
+    animation: pulse-alert-dark 1.5s infinite;
+}
+
+body.dark-mode .safety-unknown {
+    color: #ffeeba; /* Light yellow text */
+    background-color: #161b22; /* Dark background */
+    border: 1px solid #ffc107; /* Yellow border */
+}
+
+@keyframes pulse-alert-dark {
+    0% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.4); }
+    70% { box-shadow: 0 0 0 10px rgba(220, 53, 69, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); }
+}
+
+body.dark-mode .location-check-container button {
+    background-color: #58a6ff;
+}
+
+body.dark-mode .location-check-container button:hover {
+    background-color: #4da6ff;
+}
+
+body.dark-mode .dark-mode-toggle {
+    background-color: #30363d;
+    color: #c9d1d9;
+    border: 1px solid #8b949e;
+}
+
+body.dark-mode .dark-mode-toggle:hover {
+    background-color: #444;
+}
+/* --- Data Animation Styles --- */
+
+@keyframes data-pulse {
+    0% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: scale(1.05);
+        opacity: 0.8;
+    }
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+@keyframes data-fade-in {
+    0% {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.data-value {
+    /* Existing styles */
+    transition: transform 0.1s ease-out, color 0.1s ease-out;
+}
+
+.data-value.animate-update {
+    animation: data-pulse 0.5s ease-out;
+}
+
+/* Specific animations for Rainfall and Temperature */
+.data-card:nth-child(1) .data-value.animate-update { /* Rainfall */
+    animation: data-pulse 0.5s ease-out, data-fade-in 0.3s;
+    color: #58a6ff; /* Highlight color on update */
+}
+
+.data-card:nth-child(3) .data-value.animate-update { /* Temperature */
+    animation: data-pulse 0.5s ease-out, data-fade-in 0.3s;
+    color: #ff7b72; /* Highlight color on update (reddish) */
+}
+
+/* Reset animation after it runs */
+.data-value.animate-update {
+    /* This is handled by JS removing the class, but we ensure smooth transition */
+    transition: transform 0.5s ease-out, color 0.5s ease-out;
+}
+/* --- Rain Animation Keyframes --- */
+@keyframes rain-fall {
+    0% {
+        background-position: 0 0;
+    }
+    100% {
+        background-position: 0 100%;
+    }
+}
+
+.rain-card {
+    background-color: #e0f7fa; /* Light blue background for rain */
+}
+
+.rain-animation-bg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+    opacity: 0.5;
+    /* Create the rain effect using a repeating linear gradient */
+    background-image: repeating-linear-gradient(
+        -45deg,
+        rgba(0, 123, 255, 0.5),
+        rgba(0, 123, 255, 0.5) 1px,
+        transparent 1px,
+        transparent 10px
+    );
+    background-size: 10px 100px; /* Control density and length of 'drops' */
+    animation: rain-fall 1s linear infinite;
+}
+
+/* Dark Mode Adjustments for Rain */
+body.dark-mode .rain-card {
+    background-color: #161b22;
+}
+
+body.dark-mode .rain-animation-bg {
+    opacity: 0.3;
+    background-image: repeating-linear-gradient(
+        -45deg,
+        rgba(88, 166, 255, 0.5),
+        rgba(88, 166, 255, 0.5) 1px,
+        transparent 1px,
+        transparent 10px
+    );
+}
+
+/* --- Water Level Animation Keyframes (Wave) --- */
+@keyframes wave {
+    0% {
+        transform: translate3d(-90px, 0, 0);
+    }
+    100% {
+        transform: translate3d(85px, 0, 0);
+    }
+}
+
+.water-card {
+    background-color: #e8f5e9; /* Light green/teal background for water */
+}
+
+.water-animation-bg {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 50%; /* Water level starts at 50% */
+    z-index: 1;
+    overflow: hidden;
+}
+
+.water-animation-bg::before {
+    content: '';
+    position: absolute;
+    width: 200%;
+    height: 200%;
+    top: 0;
+    left: 50%;
+    transform: translate(-50%, 0);
+    background-color: #4caf50; /* Green water color */
+    border-radius: 45%;
+    animation: wave 5s linear infinite;
+}
+
+/* Dark Mode Adjustments for Water */
+body.dark-mode .water-card {
+    background-color: #161b22;
+}
+
+body.dark-mode .water-animation-bg::before {
+    background-color: #28a745; /* Darker green water color */
+}
+
+/* --- Temperature Animation Keyframes (Heat Pulse) --- */
+@keyframes heat-pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(255, 123, 114, 0.7);
+    }
+    70% {
+        box-shadow: 0 0 0 10px rgba(255, 123, 114, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(255, 123, 114, 0);
+    }
+}
+
+.temp-card {
+    background-color: #fff3e0; /* Light orange/yellow background for heat */
+    transition: box-shadow 0.5s ease-in-out;
+}
+
+.temp-card:hover {
+    animation: heat-pulse 2s infinite;
+}
+
+/* Dark Mode Adjustments for Temperature */
+body.dark-mode .temp-card {
+    background-color: #161b22;
+}
+
+body.dark-mode .temp-card:hover {
+    animation: none; /* Disable hover animation in dark mode for simplicity, or define a dark mode pulse */
+    box-shadow: 0 0 10px rgba(255, 123, 114, 0.5);
+}
