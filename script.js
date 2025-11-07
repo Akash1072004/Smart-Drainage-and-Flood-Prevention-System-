@@ -1,7 +1,8 @@
 // --- Configuration ---
 // Replace this with your actual Firebase API URL
-const API_ENDPOINT = "./data.json";
-const REFRESH_INTERVAL_MS = 30000; // 30 seconds
+const API_ENDPOINT = "http://127.0.0.1:5000/data";
+// const API_ENDPOINT = "./data.json"; // No longer fetching static data
+const REFRESH_INTERVAL_MS = 5000; // 5 seconds (Adjusted frequency to balance responsiveness and performance)
 
 // Mock Geocoding data for demonstration
 const MOCK_LOCATIONS = {
@@ -20,6 +21,8 @@ let fullWaterChartInstance;
 let fullTempChartInstance;
 let searchMarker; // Marker for user-searched location
 let currentData; // Global variable to hold the latest fetched data
+let refreshIntervalId; // To store the ID of the polling interval
+let currentPage = ''; // To track the currently rendered page
 
 // --- Dark Mode Logic ---
 
@@ -311,14 +314,24 @@ function initializeMap() {
 // --- Routing and Page Rendering Logic ---
 
 const ROUTES = {
-    'dashboard': { templateId: 'dashboard-template', init: (data) => {
-        renderDataCards(data.current);
-        renderAlerts(data.alerts);
-        initializeDashboardCharts(data.history);
-        initializeMap(); // Re-initialize map when returning to dashboard
-        // Re-attach location check listener
-        document.getElementById('checkLocationBtn').addEventListener('click', checkLocationSafety);
-    }},
+    'dashboard': {
+        templateId: 'dashboard-template',
+        init: (data) => {
+            renderDataCards(data.current);
+            renderAlerts(data.alerts);
+            initializeDashboardCharts(data.history);
+            initializeMap(); // Re-initialize map when returning to dashboard
+            // Re-attach location check listener
+            document.getElementById('checkLocationBtn').addEventListener('click', checkLocationSafety);
+        },
+        update: (data) => {
+            // Only update dynamic elements
+            renderDataCards(data.current);
+            renderAlerts(data.alerts);
+            updateDashboardCharts(data.history);
+            // Map markers are static in this implementation, so no update needed.
+        }
+    },
     'rainfall': { templateId: 'rainfall-template', init: (data) => {
         initializeFullRainChart(data);
     }},
@@ -329,6 +342,19 @@ const ROUTES = {
         initializeFullTempChart(data);
     }}
 };
+
+// Function to update data on the currently rendered page without re-rendering the structure
+function updateCurrentPageData(page, data) {
+    const route = ROUTES[page];
+    if (route && route.update) {
+        route.update(data);
+    } else if (page === 'dashboard') {
+        // Default update logic for dashboard if no specific update function exists
+        renderDataCards(data.current);
+        renderAlerts(data.alerts);
+        updateDashboardCharts(data.history);
+    }
+}
 
 function renderPage(page, data) {
     const appContent = document.getElementById('app-content');
@@ -348,6 +374,7 @@ function renderPage(page, data) {
     }
 
     // 2. Run Initialization/Data Binding
+    // NOTE: We only run init when the page structure is first rendered.
     if (data) {
         route.init(data);
     }
@@ -365,7 +392,14 @@ function handleRouting(data) {
     const hash = window.location.hash.substring(1) || 'dashboard';
     const page = hash.split('/')[0]; // Use only the main page name
 
-    renderPage(page, data);
+    if (page !== currentPage) {
+        // Only re-render the entire page structure if the route changes
+        renderPage(page, data);
+        currentPage = page;
+    } else if (data) {
+        // Otherwise, just update the data on the current page
+        updateCurrentPageData(page, data);
+    }
 }
 
 // --- End Routing and Page Rendering Logic ---
@@ -444,27 +478,36 @@ function checkLocationSafety() {
 // --- Main Fetch Logic ---
 
 async function fetchData() {
-    console.log("Fetching data...");
     updateLastUpdateTime();
 
-    let data;
     try {
-        // Fetch data from the simulated hardware endpoint (data.json)
         const response = await fetch(API_ENDPOINT);
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
-        data = await response.json();
+        const data = await response.json();
         
-    } catch (error) {
-        console.error("Error fetching data:", error);
-        // Optionally show an error state on the dashboard
-        return;
-    }
+        console.log("Data fetched successfully from backend.");
 
-    // Store data globally and pass to the router to render the current page
-    currentData = data;
-    handleRouting(data);
+        // Store data globally and pass to the router to render the current page
+        currentData = data;
+        handleRouting(data);
+
+    } catch (error) {
+        console.error("Error fetching data from backend:", error);
+        // Fallback or display error message on frontend if needed
+        // For now, we just stop updating if the fetch fails.
+    }
+}
+
+// --- Polling Management ---
+
+function startAutoRefresh() {
+    // Clear any existing interval to prevent multiple simultaneous polls
+    if (refreshIntervalId) {
+        clearInterval(refreshIntervalId);
+    }
+    refreshIntervalId = setInterval(fetchData, REFRESH_INTERVAL_MS);
 }
 
 // --- Initialization ---
@@ -474,13 +517,16 @@ document.addEventListener('DOMContentLoaded', () => {
     initializeDarkMode();
 
     // 2. Set up routing listeners
-    window.addEventListener('hashchange', () => fetchData());
+    window.addEventListener('hashchange', () => {
+        // Fetch data on hash change, but do not restart the interval here.
+        fetchData();
+    });
     
     // 3. Fetch initial data and render the first page
     fetchData();
 
     // 4. Set up auto-refresh
-    setInterval(fetchData, REFRESH_INTERVAL_MS);
+    startAutoRefresh();
     
     // Note: Map initialization and location check listener are now handled inside the 'dashboard' route init function.
 });

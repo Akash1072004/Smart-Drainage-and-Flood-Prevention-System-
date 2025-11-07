@@ -540,17 +540,18 @@ body.dark-mode .dark-mode-toggle:hover {
 }
 
 .data-value.animate-update {
-    animation: data-pulse 0.5s ease-out;
+    /* Removed data-pulse animation to stop 'vibrating' effect */
+    animation: data-fade-in 0.3s ease-out;
 }
 
 /* Specific animations for Rainfall and Temperature */
 .data-card:nth-child(1) .data-value.animate-update { /* Rainfall */
-    animation: data-pulse 0.5s ease-out, data-fade-in 0.3s;
+    animation: data-fade-in 0.3s ease-out;
     color: #58a6ff; /* Highlight color on update */
 }
 
 .data-card:nth-child(3) .data-value.animate-update { /* Temperature */
-    animation: data-pulse 0.5s ease-out, data-fade-in 0.3s;
+    animation: data-fade-in 0.3s ease-out;
     color: #ff7b72; /* Highlight color on update (reddish) */
 }
 
@@ -638,7 +639,7 @@ body.dark-mode .rain-animation-bg {
     position: absolute;
     width: 200%;
     height: 200%;
-    top: 0;
+    top: -100%;
     left: 50%;
     transform: translate(-50%, 0);
     background-color: #4caf50; /* Green water color */
