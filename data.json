@@ -1,10 +1,10 @@
 {
     "current": {
-        "rainfall_mm": 8.6,
-        "water_level_cm": 21.3,
-        "temperature_c": 30.3,
-        "ai_risk": "Low",
-        "ai_message": "Water level is normal. System operating within safe parameters.",
+        "rainfall_mm": 19.1,
+        "water_level_cm": 63.6,
+        "temperature_c": 27.0,
+        "ai_risk": "Moderate",
+        "ai_message": "Water level is elevated. Monitor closely.",
         "ai_recommendation": "Monitor system closely."
     },
     "history": {
@@ -13,28 +13,40 @@
             "00:36",
             "00:36",
             "00:36",
-            "00:36",
-            "00:36"
+            "12:17",
+            "12:17"
         ],
         "rainfall": [
-            0.8,
-            16.3,
             21.4,
             3.1,
             4.5,
-            8.6
+            8.6,
+            0.6,
+            19.1
         ],
         "water_level": [
-            62.1,
-            50.4,
             41.0,
             16.0,
             80.6,
-            21.3
+            21.3,
+            74.4,
+            63.6
         ]
     },
     "alerts": [
         {
+            "time": "12:17",
+            "zone": "Zone 3",
+            "message": "Water level rising.",
+            "risk": "Moderate"
+        },
+        {
+            "time": "12:17",
+            "zone": "Zone 1",
+            "message": "High flood risk detected.",
+            "risk": "High"
+        },
+        {
             "time": "00:36",
             "zone": "Zone 1",
             "message": "High flood risk detected.",
@@ -75,18 +87,6 @@
             "zone": "Zone 3",
             "message": "Water level rising.",
             "risk": "Moderate"
-        },
-        {
-            "time": "00:36",
-            "zone": "Zone 3",
-            "message": "Water level rising.",
-            "risk": "Moderate"
-        },
-        {
-            "time": "00:36",
-            "zone": "Zone 1",
-            "message": "High flood risk detected.",
-            "risk": "High"
         },
         {
             "time": "00:36",
