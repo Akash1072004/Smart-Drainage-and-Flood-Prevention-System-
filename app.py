@@ -6,6 +6,37 @@ from datetime import datetime
 from flask import Flask, jsonify, send_file
 from flask_cors import CORS
 
+# New imports for LSTM
+import numpy as np
+from tensorflow.keras.models import load_model
+from sklearn.preprocessing import MinMaxScaler
+import joblib # To load the scaler
+
+# Configuration for LSTM
+LSTM_MODEL_PATH = 'lstm_model.h5'
+SCALER_PATH = 'scaler.pkl'
+SEQUENCE_LENGTH = 6 # Must match the sequence length used during training
+
+# Global variables to hold the loaded model and scaler
+lstm_model = None
+scaler = None
+
+def load_lstm_assets():
+    """Loads the pre-trained LSTM model and MinMaxScaler."""
+    global lstm_model, scaler
+    try:
+        # Suppress TensorFlow warnings during loading
+        os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+        
+        lstm_model = load_model(LSTM_MODEL_PATH)
+        # We use joblib for the scaler as it's standard for scikit-learn objects
+        scaler = joblib.load(SCALER_PATH) 
+        print("LSTM model and scaler loaded successfully.")
+    except Exception as e:
+        print(f"Warning: Error loading LSTM assets: {e}. Prediction will be skipped.")
+        lstm_model = None
+        scaler = None
+        
 # =============================================================================
 # CONFIGURATION
 # =============================================================================
@@ -92,6 +123,70 @@ def calculate_ai_risk(water_level):
     
     return risk, message
 
+def predict_lstm_risk(history_data):
+    """
+    Uses the LSTM model to predict the next water level and calculate risk.
+    """
+    global lstm_model, scaler, SEQUENCE_LENGTH
+    
+    if lstm_model is None or scaler is None:
+        # Fallback if model/scaler failed to load (due to missing files or dependency issues)
+        return "Low", "LSTM model not available. Using instantaneous risk calculation."
+
+    # 1. Prepare the input data (features: water_level, rainfall)
+    # We need the last SEQUENCE_LENGTH points.
+    water_levels = history_data['water_level']
+    rainfalls = history_data['rainfall']
+    
+    # Combine into a 2D array: [[WL1, R1], [WL2, R2], ...]
+    # Note: We assume the history lists are already padded/truncated to the correct size
+    # by update_state_with_current_data, but we ensure we only use the required length.
+    
+    if len(water_levels) < SEQUENCE_LENGTH:
+        return "Low", "Insufficient history data for LSTM prediction."
+
+    # Use only the required sequence length (last SEQUENCE_LENGTH points)
+    # We zip and convert to numpy array
+    raw_sequence = np.array(list(zip(water_levels, rainfalls)))[-SEQUENCE_LENGTH:]
+
+    # 2. Scale the data
+    # NOTE: The scaler must be fitted on the training data for both features (water_level, rainfall).
+    try:
+        scaled_sequence = scaler.transform(raw_sequence)
+    except ValueError as e:
+        print(f"Scaling error: {e}. Check if scaler was fitted correctly.")
+        return "Low", "Scaling error during LSTM prediction."
+    
+    # 3. Reshape for LSTM input: (1, sequence_length, n_features)
+    X_input = scaled_sequence.reshape(1, SEQUENCE_LENGTH, 2)
+
+    # 4. Predict the next scaled water level
+    # We predict the next water level (feature 0)
+    try:
+        scaled_prediction = lstm_model.predict(X_input, verbose=0)[0][0]
+    except Exception as e:
+        print(f"LSTM prediction error: {e}")
+        return "Low", "Error running LSTM prediction."
+
+    # 5. Inverse transform the prediction to get the actual water level
+    # We need a dummy array to inverse transform only the water level (first feature)
+    # The scaler expects a 2D array with the same number of features it was trained on.
+    dummy_input = np.zeros((1, 2))
+    dummy_input[0, 0] = scaled_prediction # Put prediction in the water level column
+    
+    # Inverse transform the water level column
+    predicted_water_level = scaler.inverse_transform(dummy_input)[0, 0]
+    
+    # 6. Calculate risk based on the predicted water level
+    predicted_risk, _ = calculate_ai_risk(predicted_water_level)
+    
+    lstm_message = (
+        f"LSTM Prediction: Next water level is projected to be {predicted_water_level:.1f} cm. "
+        f"Predicted risk: {predicted_risk}."
+    )
+    
+    return predicted_risk, lstm_message
+
 def get_dummy_data():
     """
     Generates random dummy sensor data.
@@ -157,21 +252,15 @@ def get_thingspeak_data():
 
 def update_state_with_current_data(state, current_data):
     """
-    Updates the full application state (history, alerts, messages) based on new current data.
+    Updates the full application state (history, alerts, messages) based on new current data,
+    and incorporates LSTM prediction for advanced risk assessment.
     """
     water_level = current_data['water_level_cm']
-    risk, message = calculate_ai_risk(water_level)
-    
-    current_data['ai_message'] = message
-    current_data['ai_recommendation'] = "Monitor system closely." # Placeholder recommendation
-    
-    # Update current data
-    state['current'] = current_data
-    
-    # Update history (assuming fixed size of 6 points, matching frontend mock)
-    history = state['history']
-    
     current_time = datetime.now().strftime("%H:%M")
+    
+    # 1. Update history with the new data point
+    history = state['history']
+    MAX_HISTORY_SIZE = 6
     
     # Ensure history lists are initialized
     if not history.get('labels'):
@@ -180,8 +269,6 @@ def update_state_with_current_data(state, current_data):
         history['water_level'] = []
 
     # Keep history size manageable (e.g., last 6 entries)
-    MAX_HISTORY_SIZE = 6
-    
     if len(history['labels']) >= MAX_HISTORY_SIZE:
         history['labels'].pop(0)
         history['rainfall'].pop(0)
@@ -191,15 +278,50 @@ def update_state_with_current_data(state, current_data):
     history['rainfall'].append(current_data['rainfall_mm'])
     history['water_level'].append(current_data['water_level_cm'])
     
-    # Generate alerts (simple logic based on risk)
+    # 2. Calculate instantaneous risk
+    instant_risk, instant_message = calculate_ai_risk(water_level)
+    
+    # 3. Run LSTM prediction using the updated history
+    lstm_risk, lstm_message = predict_lstm_risk(history)
+    
+    # 4. Determine final risk and recommendation based on both instantaneous and predicted risk
+    final_risk = instant_risk
+    final_message = instant_message
+    final_recommendation = "Monitor system closely."
+    
+    if lstm_model is not None and lstm_risk == "High":
+        # If LSTM predicts high risk, prioritize the predictive alert
+        final_recommendation = f"PREDICTIVE ALERT: {lstm_message} Prepare for potential high water levels."
+        if instant_risk == "Low":
+             # If current risk is low but prediction is high, elevate the overall risk status
+            final_risk = "Moderate"
+            final_message = "Water level is currently normal, but predictive model forecasts high risk."
+    elif lstm_model is not None and lstm_risk == "Moderate":
+        final_recommendation = f"Forecast suggests rising levels. {lstm_message}"
+    else:
+        # Use instantaneous message and a standard recommendation
+        final_recommendation = "System stable. Monitor closely."
+        
+    # If instantaneous risk is high, override the message/risk
+    if instant_risk == "High":
+        final_risk = instant_risk
+        final_message = instant_message
+        final_recommendation = "IMMEDIATE ACTION: Critical water level detected. Initiate flood mitigation procedures."
+        
+    # Update current data
+    current_data['ai_risk'] = final_risk
+    current_data['ai_message'] = final_message
+    current_data['ai_recommendation'] = final_recommendation
+    
+    state['current'] = current_data
+    
+    # 5. Generate alerts (using the instantaneous risk for immediate alerts)
     alerts = state['alerts']
     
     new_alert = None
-    # Check if the current risk level is higher than the last recorded alert's risk level, or if it's a high risk.
-    # For simplicity, we just append new alerts based on risk level.
-    if risk == "High":
+    if instant_risk == "High":
         new_alert = { "time": current_time, "zone": "Zone 1", "message": "High flood risk detected.", "risk": "High" }
-    elif risk == "Moderate":
+    elif instant_risk == "Moderate":
         new_alert = { "time": current_time, "zone": "Zone 3", "message": "Water level rising.", "risk": "Moderate" }
         
     if new_alert:
@@ -270,9 +392,12 @@ def get_sensor_data():
 # =============================================================================
 
 if __name__ == '__main__':
+    # Load LSTM model assets on startup
+    load_lstm_assets()
+    
     # How to start the backend server in VS Code terminal:
-    # 1. Ensure you have Flask, requests, and flask-cors installed:
-    #    pip install Flask requests flask-cors
+    # 1. Ensure you have Flask, requests, flask-cors, tensorflow, numpy, scikit-learn, and joblib installed:
+    #    pip install Flask requests flask-cors tensorflow numpy scikit-learn joblib
     # 2. Run this file:
     #    python app.py
     # The server will run on http://127.0.0.1:5000/
