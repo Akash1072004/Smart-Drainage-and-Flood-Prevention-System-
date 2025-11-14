@@ -141,24 +141,37 @@ function renderAlerts(alerts) {
 
 // --- Chart Functions ---
 
-const CHART_OPTIONS = {
-    responsive: true,
-    maintainAspectRatio: false,
-    scales: {
-        y: {
-            beginAtZero: true
+function createChartOptions(unit, displayLegend = false) {
+    return {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+            y: {
+                beginAtZero: true,
+                title: {
+                    display: true,
+                    text: unit
+                },
+                ticks: {
+                    callback: function(value) {
+                        return value + unit;
+                    }
+                }
+            }
+        },
+        plugins: {
+            legend: {
+                display: displayLegend
+            }
         }
-    },
-    plugins: {
-        legend: {
-            display: false
-        }
-    }
-};
+    };
+}
 
-function createChart(elementId, type, label, data, labels, borderColor, backgroundColor) {
+function createChart(elementId, type, label, data, labels, borderColor, backgroundColor, unit = '') {
     const ctx = document.getElementById(elementId);
     if (!ctx) return null; // Return null if element doesn't exist (page not loaded)
+
+    const options = createChartOptions(unit, label.includes('Water Temperature')); // Display legend for temperature chart
 
     return new Chart(ctx.getContext('2d'), {
         type: type,
@@ -173,7 +186,7 @@ function createChart(elementId, type, label, data, labels, borderColor, backgrou
                 fill: true
             }]
         },
-        options: CHART_OPTIONS
+        options: options
     });
 }
 
@@ -185,13 +198,13 @@ function initializeDashboardCharts(history) {
     // Rainfall Chart (Dashboard)
     rainChartInstance = createChart(
         'rainChart', 'line', 'Rainfall (mm)', history.rainfall, history.labels,
-        'rgba(0, 123, 255, 1)', 'rgba(0, 123, 255, 0.2)'
+        'rgba(0, 123, 255, 1)', 'rgba(0, 123, 255, 0.2)', 'mm'
     );
 
     // Water Level Chart (Dashboard)
     waterChartInstance = createChart(
         'waterChart', 'line', 'Water Level (cm)', history.water_level, history.labels,
-        'rgba(40, 167, 69, 1)', 'rgba(40, 167, 69, 0.2)'
+        'rgba(40, 167, 69, 1)', 'rgba(40, 167, 69, 0.2)', 'cm'
     );
 }
 
@@ -211,55 +224,68 @@ function updateDashboardCharts(history) {
 
 // --- Full Page Chart Functions (Simulated Dynamic Data) ---
 
-function initializeFullRainChart(data) {
+async function initializeFullRainChart(data) {
     if (fullRainChartInstance) fullRainChartInstance.destroy();
 
-    // Simulate 7 days of data
-    const labels = ['Day 1', 'Day 2', 'Day 3', 'Day 4', 'Day 5', 'Day 6', 'Day 7'];
-    const rainfallData = [10, 5, 20, 15, 8, 12, data.current.rainfall_mm];
+    const history = await fetchData(`/api/rainfall`);
+    if (!history) return;
+    
+    const labels = history.labels;
+    const rainfallData = history.data;
+    const unit = history.unit || 'mm';
 
     fullRainChartInstance = createChart(
-        'fullRainChart', 'bar', 'Daily Rainfall (mm)', rainfallData, labels,
-        'rgba(0, 123, 255, 0.8)', 'rgba(0, 123, 255, 0.5)'
+        'fullRainChart', 'bar', `Daily Rainfall (${unit})`, rainfallData, labels,
+        'rgba(0, 123, 255, 0.8)', 'rgba(0, 123, 255, 0.5)', unit
     );
     
     // Update data cards
-    document.getElementById("currentRainIntensity").innerText = (data.current.rainfall_mm / 6).toFixed(1); // Mock intensity
-    document.getElementById("totalRain24h").innerText = data.current.rainfall_mm.toFixed(1);
+    const latestRain = rainfallData.length > 0 ? rainfallData[rainfallData.length - 1] : data.current.rainfall_mm;
+    document.getElementById("currentRainIntensity").innerText = (latestRain / 6).toFixed(1); // Mock intensity based on latest reading
+    document.getElementById("totalRain24h").innerText = latestRain.toFixed(1);
 }
 
-function initializeFullWaterChart(data) {
+async function initializeFullWaterChart(data) {
     if (fullWaterChartInstance) fullWaterChartInstance.destroy();
 
-    // Simulate 7 days of data
-    const labels = ['Day 1', 'Day 2', 'Day 3', 'Day 4', 'Day 5', 'Day 6', 'Day 7'];
-    const waterData = [35, 40, 45, 50, 48, 46, data.current.water_level_cm];
+    const history = await fetchData(`/api/waterlevel`);
+    if (!history) return;
+
+    const labels = history.labels;
+    const waterData = history.data;
+    const unit = history.unit || 'cm';
 
     fullWaterChartInstance = createChart(
-        'fullWaterChart', 'line', 'Daily Water Level (cm)', waterData, labels,
-        'rgba(40, 167, 69, 1)', 'rgba(40, 167, 69, 0.4)'
+        'fullWaterChart', 'line', `Daily Water Level (${unit})`, waterData, labels,
+        'rgba(40, 167, 69, 1)', 'rgba(40, 167, 69, 0.4)', unit
     );
 
     // Update data cards
-    document.getElementById("avgWaterLevel").innerText = (waterData.reduce((a, b) => a + b, 0) / waterData.length).toFixed(1);
+    const avgWaterLevel = waterData.length > 0 ? (waterData.reduce((a, b) => a + b, 0) / waterData.length).toFixed(1) : data.current.water_level_cm.toFixed(1);
+    document.getElementById("avgWaterLevel").innerText = avgWaterLevel;
 }
 
-function initializeFullTempChart(data) {
+async function initializeFullTempChart(data) {
     if (fullTempChartInstance) fullTempChartInstance.destroy();
 
-    // Simulate 7 days of data
-    const labels = ['Day 1', 'Day 2', 'Day 3', 'Day 4', 'Day 5', 'Day 6', 'Day 7'];
-    const ambientData = [25, 26, 28, 27, 29, 30, data.current.temperature_c];
-    const waterData = [22, 23, 24, 23, 25, 26, data.current.temperature_c - 2]; // Mock water temp slightly lower
+    const history = await fetchData(`/api/temperature`);
+    if (!history) return;
+
+    const labels = history.labels;
+    const ambientData = history.data;
+    const unit = history.unit || '°C';
+    
+    // Mock water temp data for the second dataset (since ThingSpeak only provides one field per channel entry)
+    const waterData = ambientData.map(t => t - 2);
 
     fullTempChartInstance = createChart(
-        'fullTempChart', 'line', 'Ambient Temperature (°C)', ambientData, labels,
-        'rgba(255, 99, 132, 1)', 'rgba(255, 99, 132, 0.4)'
+        'fullTempChart', 'line', `Ambient Temperature (${unit})`, ambientData, labels,
+        'rgba(255, 99, 132, 1)', 'rgba(255, 99, 132, 0.4)', unit
     );
     
     // Add water temperature dataset
     fullTempChartInstance.data.datasets.push({
-        label: 'Water Temperature (°C)',
+        label: `Water Temperature (${unit})`,
         data: waterData,
         borderColor: 'rgba(54, 162, 235, 1)',
         backgroundColor: 'rgba(54, 162, 235, 0.4)',
@@ -269,8 +295,9 @@ function initializeFullTempChart(data) {
     fullTempChartInstance.update();
 
     // Update data cards
-    document.getElementById("ambientTemp").innerText = data.current.temperature_c.toFixed(1);
-    document.getElementById("waterTemp").innerText = (data.current.temperature_c - 2).toFixed(1);
+    const latestTemp = ambientData.length > 0 ? ambientData[ambientData.length - 1] : data.current.temperature_c;
+    document.getElementById("ambientTemp").innerText = latestTemp.toFixed(1);
+    document.getElementById("waterTemp").innerText = (latestTemp - 2).toFixed(1);
 }
 
 // --- Map Functions ---
@@ -477,26 +504,30 @@ function checkLocationSafety() {
 
 // --- Main Fetch Logic ---
 
-async function fetchData() {
-    updateLastUpdateTime();
-
+async function fetchData(url = API_ENDPOINT) {
     try {
-        const response = await fetch(API_ENDPOINT);
+        const response = await fetch(url);
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
-        const data = await response.json();
-        
-        console.log("Data fetched successfully from backend.");
+        return await response.json();
+    } catch (error) {
+        console.error(`Error fetching data from ${url}:`, error);
+        return null;
+    }
+}
+
+async function fetchAndRouteData() {
+    updateLastUpdateTime();
+
+    const data = await fetchData(API_ENDPOINT);
+    
+    if (data) {
+        console.log("Dashboard data fetched successfully from backend.");
 
         // Store data globally and pass to the router to render the current page
         currentData = data;
         handleRouting(data);
-
-    } catch (error) {
-        console.error("Error fetching data from backend:", error);
-        // Fallback or display error message on frontend if needed
-        // For now, we just stop updating if the fetch fails.
     }
 }
 
@@ -507,7 +538,7 @@ function startAutoRefresh() {
     if (refreshIntervalId) {
         clearInterval(refreshIntervalId);
     }
-    refreshIntervalId = setInterval(fetchData, REFRESH_INTERVAL_MS);
+    refreshIntervalId = setInterval(fetchAndRouteData, REFRESH_INTERVAL_MS);
 }
 
 // --- Initialization ---
@@ -519,11 +550,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // 2. Set up routing listeners
     window.addEventListener('hashchange', () => {
         // Fetch data on hash change, but do not restart the interval here.
-        fetchData();
+        fetchAndRouteData();
     });
     
     // 3. Fetch initial data and render the first page
-    fetchData();
+    fetchAndRouteData();
 
     // 4. Set up auto-refresh
     startAutoRefresh();

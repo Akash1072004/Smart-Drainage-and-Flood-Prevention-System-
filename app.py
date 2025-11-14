@@ -44,13 +44,14 @@ def load_lstm_assets():
 # Toggle data source:
 # True: Use randomly generated dummy data.
 # False: Attempt to fetch live data from ThingSpeak.
-USE_DUMMY_DATA = True
+USE_DUMMY_DATA = False
 
 # ThingSpeak Configuration (Required if USE_DUMMY_DATA is False)
 # !!! REPLACE WITH YOUR ACTUAL CHANNEL ID AND READ API KEY !!!
-TS_CHANNEL_ID = "YOUR_CHANNEL_ID"
-TS_READ_API_KEY = "YOUR_READ_API_KEY"
-THINGSPEAK_URL = f"https://api.thingspeak.com/channels/{TS_CHANNEL_ID}/feeds.json?api_key={TS_READ_API_KEY}&results=1"
+TS_CHANNEL_ID = "3158686"
+TS_READ_API_KEY = "UYBAXWW4HMKQIO5F"
+TS_BASE_URL = f"https://api.thingspeak.com/channels/{TS_CHANNEL_ID}/feeds.json?api_key={TS_READ_API_KEY}"
+THINGSPEAK_URL = f"{TS_BASE_URL}&results=2"
 
 # Optional: n8n Webhook URL
 # Replace with your n8n webhook URL if you want to send data.
@@ -386,6 +387,92 @@ def get_sensor_data():
         send_to_n8n(response_data["current"])
     
     return jsonify(response_data)
+
+def fetch_historical_data(field_id, results=7):
+    """Fetches historical data for a specific ThingSpeak field."""
+    global TS_CHANNEL_ID, TS_READ_API_KEY
+    
+    if TS_CHANNEL_ID == "YOUR_CHANNEL_ID" or TS_READ_API_KEY == "YOUR_READ_API_KEY":
+        print("ThingSpeak configuration missing for historical data. Returning dummy data.")
+        # Return dummy data structure if config is missing
+        if field_id == 1: # Rainfall (mm)
+            data_points = [random.uniform(0, 20) for _ in range(results)]
+            unit = "mm"
+        elif field_id == 2: # Water Level (cm)
+            data_points = [random.uniform(30, 80) for _ in range(results)]
+            unit = "cm"
+        elif field_id == 3: # Temperature (°C)
+            data_points = [random.uniform(25, 35) for _ in range(results)]
+            unit = "°C"
+        else:
+            data_points = [0] * results
+            unit = ""
+            
+        labels = [f"T-{i*5}m" for i in range(results, 0, -1)] # Mock labels
+        return {"labels": labels, "data": [round(d, 1) for d in data_points], "unit": unit}
+
+
+    # Fetch all fields for the last 'results' entries
+    TS_BASE_URL = f"https://api.thingspeak.com/channels/{TS_CHANNEL_ID}/feeds.json?api_key={TS_READ_API_KEY}"
+    url = f"{TS_BASE_URL}&results={results}"
+    
+    try:
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
+        data = response.json()
+        
+        if not data.get('feeds'):
+            return {"labels": [], "data": []}
+
+        labels = []
+        field_data = []
+        
+        field_key = f'field{field_id}'
+        
+        # Determine unit based on field_id
+        if field_id == 1: unit = "mm"
+        elif field_id == 2: unit = "cm"
+        elif field_id == 3: unit = "°C"
+        else: unit = ""
+        
+        # ThingSpeak returns feeds in chronological order (oldest first)
+        for feed in data['feeds']:
+            timestamp = feed.get('created_at')
+            field_value = feed.get(field_key)
+            
+            if timestamp and field_value is not None:
+                try:
+                    dt = datetime.strptime(timestamp, '%Y-%m-%dT%H:%M:%SZ')
+                    # Use time for recent data, or date if data spans days
+                    labels.append(dt.strftime('%H:%M'))
+                    field_data.append(round(float(field_value), 1))
+                except ValueError:
+                    continue
+        
+        return {"labels": labels, "data": field_data, "unit": unit}
+
+    except requests.exceptions.RequestException as e:
+        print(f"Error fetching historical data from ThingSpeak (Field {field_id}): {e}")
+        return {"labels": [], "data": []}
+
+@app.route('/api/rainfall', methods=['GET'])
+def get_rainfall_history():
+    # Fetch 7 data points for Rainfall (Field 1)
+    history = fetch_historical_data(field_id=1, results=7)
+    return jsonify(history)
+
+@app.route('/api/waterlevel', methods=['GET'])
+def get_waterlevel_history():
+    # Fetch 7 data points for Water Level (Field 2)
+    history = fetch_historical_data(field_id=2, results=7)
+    return jsonify(history)
+
+@app.route('/api/temperature', methods=['GET'])
+def get_temperature_history():
+    # Fetch 7 data points for Temperature (Field 3)
+    history = fetch_historical_data(field_id=3, results=7)
+    return jsonify(history)
+
 
 # =============================================================================
 # SERVER STARTUP
