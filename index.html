@@ -30,6 +30,7 @@
         <a href="#dashboard" class="nav-link active" data-page="dashboard">🏠 Dashboard</a>
         <a href="#rainfall" class="nav-link" data-page="rainfall">🌧️ Rainfall Data</a>
         <a href="#waterlevel" class="nav-link" data-page="waterlevel">🌊 Water Level Data</a>
+        <a href="#soilmoisture" class="nav-link" data-page="soilmoisture">💧 Soil Moisture Data</a>
         <a href="#temperature" class="nav-link" data-page="temperature">🌡️ Temperature Data</a>
     </nav>
     <main class="dashboard-container">
@@ -57,6 +58,14 @@
                         <span class="unit">cm</span>
                     </div>
                 </div>
+                <div class="card data-card soil-card">
+                    <div class="card-animation-bg soil-animation-bg"></div>
+                    <div class="card-content">
+                        <h3>Soil Moisture 💧</h3>
+                        <p id="soil" class="data-value">--</p>
+                        <span class="unit">%</span>
+                    </div>
+                </div>
                 <div class="card data-card temp-card">
                     <div class="card-animation-bg temp-animation-bg"></div>
                     <div class="card-content">
@@ -65,7 +74,7 @@
                         <span class="unit">°C</span>
                     </div>
                 </div>
-                <!-- New Prediction Panel -->
+                <!-- AI Prediction Panel -->
                 <div id="prediction-panel" class="card prediction-panel">
                     <h2>Flood Forecast 🔮</h2>
                     <div class="forecast-details">
@@ -174,6 +183,34 @@
                         <h3>Critical Threshold</h3>
                         <p id="criticalWaterLevel" class="data-value">75.0</p>
                         <span class="unit">cm</span>
+                    </div>
+                </div>
+            </section>
+        </template>
+        
+        <!-- Soil Moisture Page Template (New) -->
+        <template id="soilmoisture-template">
+            <section class="full-page-data-section">
+                <h1>💧 Detailed Soil Moisture Data</h1>
+                <p>This page shows comprehensive, dynamic soil moisture data, which is a key indicator for ground saturation and runoff potential.</p>
+                <div class="card chart-card full-width-chart">
+                    <h2>Soil Moisture History (Last 7 Days)</h2>
+                    <canvas id="fullSoilChart"></canvas>
+                </div>
+                <div class="card data-card soil-card">
+                    <div class="card-animation-bg soil-animation-bg"></div>
+                    <div class="card-content">
+                        <h3>Current Moisture</h3>
+                        <p id="currentSoilMoisture" class="data-value">--</p>
+                        <span class="unit">%</span>
+                    </div>
+                </div>
+                <div class="card data-card soil-card">
+                    <div class="card-animation-bg soil-animation-bg"></div>
+                    <div class="card-content">
+                        <h3>Saturation Level</h3>
+                        <p id="soilSaturation" class="data-value">--</p>
+                        <span class="unit">%</span>
                     </div>
                 </div>
             </section>

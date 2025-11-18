@@ -1,8 +1,15 @@
 // --- Configuration ---
 // Replace this with your actual Firebase API URL
 const API_ENDPOINT = "http://127.0.0.1:5000/data";
-// const API_ENDPOINT = "./data.json"; // No longer fetching static data
-const REFRESH_INTERVAL_MS = 5000; // 5 seconds (Adjusted frequency to balance responsiveness and performance)
+const REFRESH_INTERVAL_MS = 5000; // 5 seconds
+
+// API Endpoints for Historical Data (Synchronized with app.py)
+const HISTORY_ENDPOINTS = {
+    rainfall: "http://127.0.0.1:5000/api/rainfall",
+    waterlevel: "http://127.0.0.1:5000/api/waterlevel",
+    temperature: "http://127.0.0.1:5000/api/temperature",
+    soilmoisture: "http://127.0.0.1:5000/api/soilmoisture" // New Endpoint
+};
 
 // Mock Geocoding data for demonstration
 const MOCK_LOCATIONS = {
@@ -19,6 +26,7 @@ let waterChartInstance;
 let fullRainChartInstance;
 let fullWaterChartInstance;
 let fullTempChartInstance;
+let fullSoilChartInstance; // New Chart Instance
 let searchMarker; // Marker for user-searched location
 let currentData; // Global variable to hold the latest fetched data
 let refreshIntervalId; // To store the ID of the polling interval
@@ -57,8 +65,6 @@ function setDarkMode(isDark) {
         localStorage.setItem('darkMode', 'false');
         toggleButton.innerText = '🌙 Dark Mode';
     }
-    // Note: Chart colors might need explicit update if they don't inherit CSS variables well.
-    // For now, we rely on CSS, but this is where chart updates would go if needed.
 }
 // --- Utility Functions ---
 
@@ -94,7 +100,8 @@ function renderDataCards(data) {
     const dataElements = [
         { id: "rain", value: data.rainfall_mm.toFixed(1) },
         { id: "water", value: data.water_level_cm.toFixed(1) },
-        { id: "temp", value: data.temperature_c.toFixed(1) }
+        { id: "temp", value: data.temperature_c.toFixed(1) },
+        { id: "soil", value: data.soil_moisture.toFixed(1) } // New Soil Moisture Card
     ];
 
     // 1. Update standard data cards
@@ -170,8 +177,6 @@ function renderAlerts(alerts) {
 
 // --- Chart Functions ---
 
-// --- Chart Functions ---
-
 function createChartOptions(unit, displayLegend = false) {
     return {
         responsive: true,
@@ -202,7 +207,7 @@ function createChart(elementId, type, label, data, labels, borderColor, backgrou
     const ctx = document.getElementById(elementId);
     if (!ctx) return null; // Return null if element doesn't exist (page not loaded)
 
-    const options = createChartOptions(unit, label.includes('Water Temperature')); // Display legend for temperature chart
+    const options = createChartOptions(unit, label.includes('Temperature')); // Display legend for temperature chart
 
     return new Chart(ctx.getContext('2d'), {
         type: type,
@@ -323,12 +328,12 @@ function updateDashboardCharts(history, current) {
     }
 }
 
-// --- Full Page Chart Functions (Simulated Dynamic Data) ---
+// --- Full Page Chart Functions (Unified Fetch) ---
 
 async function initializeFullRainChart(data) {
     if (fullRainChartInstance) fullRainChartInstance.destroy();
 
-    const history = await fetchData(`/api/rainfall`);
+    const history = await fetchData(HISTORY_ENDPOINTS.rainfall);
     if (!history) return;
     
     const labels = history.labels;
@@ -349,7 +354,7 @@ async function initializeFullRainChart(data) {
 async function initializeFullWaterChart(data) {
     if (fullWaterChartInstance) fullWaterChartInstance.destroy();
 
-    const history = await fetchData(`/api/waterlevel`);
+    const history = await fetchData(HISTORY_ENDPOINTS.waterlevel);
     if (!history) return;
 
     const labels = history.labels;
@@ -369,7 +374,7 @@ async function initializeFullWaterChart(data) {
 async function initializeFullTempChart(data) {
     if (fullTempChartInstance) fullTempChartInstance.destroy();
 
-    const history = await fetchData(`/api/temperature`);
+    const history = await fetchData(HISTORY_ENDPOINTS.temperature);
     if (!history) return;
 
     const labels = history.labels;
@@ -401,6 +406,27 @@ async function initializeFullTempChart(data) {
     document.getElementById("waterTemp").innerText = (latestTemp - 2).toFixed(1);
 }
 
+async function initializeFullSoilChart(data) {
+    if (fullSoilChartInstance) fullSoilChartInstance.destroy();
+
+    const history = await fetchData(HISTORY_ENDPOINTS.soilmoisture);
+    if (!history) return;
+
+    const labels = history.labels;
+    const soilData = history.data;
+    const unit = history.unit || '%';
+
+    fullSoilChartInstance = createChart(
+        'fullSoilChart', 'line', `Soil Moisture (${unit})`, soilData, labels,
+        'rgba(139, 69, 19, 1)', 'rgba(139, 69, 19, 0.4)', unit // Brown color for soil
+    );
+
+    // Update data cards
+    const latestSoil = soilData.length > 0 ? soilData[soilData.length - 1] : data.current.soil_moisture;
+    document.getElementById("currentSoilMoisture").innerText = latestSoil.toFixed(1);
+    document.getElementById("soilSaturation").innerText = (latestSoil / 100 * 100).toFixed(1); // Mock saturation
+}
+
 // --- Map Functions ---
 
 let mapInstance;
@@ -409,6 +435,11 @@ function initializeMap() {
     // Coordinates centered near a typical Indian location (e.g., Agartala region)
     const initialCoords = [23.8314, 91.2868]; 
     
+    // Check if map is already initialized
+    if (mapInstance) {
+        mapInstance.remove();
+    }
+
     mapInstance = L.map('map').setView(initialCoords, 10);
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -468,6 +499,9 @@ const ROUTES = {
     }},
     'temperature': { templateId: 'temperature-template', init: (data) => {
         initializeFullTempChart(data);
+    }},
+    'soilmoisture': { templateId: 'soilmoisture-template', init: (data) => { // New Route
+        initializeFullSoilChart(data);
     }}
 };
 
@@ -603,9 +637,9 @@ function checkLocationSafety() {
     }
 }
 
-// --- Main Fetch Logic ---
+// --- Main Fetch Logic (Unified Fetch) ---
 
-async function fetchData(url = API_ENDPOINT) {
+async function fetchData(url) {
     try {
         const response = await fetch(url);
         if (!response.ok) {
@@ -621,14 +655,15 @@ async function fetchData(url = API_ENDPOINT) {
 async function fetchAndRouteData() {
     updateLastUpdateTime();
 
-    const data = await fetchData(API_ENDPOINT);
+    // Fetch dashboard data (current state, history, alerts)
+    const dashboardData = await fetchData(API_ENDPOINT);
     
-    if (data) {
+    if (dashboardData) {
         console.log("Dashboard data fetched successfully from backend.");
 
         // Store data globally and pass to the router to render the current page
-        currentData = data;
-        handleRouting(data);
+        currentData = dashboardData;
+        handleRouting(dashboardData);
     }
 }
 
@@ -659,6 +694,4 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 4. Set up auto-refresh
     startAutoRefresh();
-    
-    // Note: Map initialization and location check listener are now handled inside the 'dashboard' route init function.
 });

@@ -8,14 +8,45 @@ from flask_cors import CORS
 
 # New imports for LSTM
 import numpy as np
+import tensorflow as tf # Added for consistency
 from tensorflow.keras.models import load_model
 from sklearn.preprocessing import MinMaxScaler
 import joblib # To load the scaler
 
-# Configuration for LSTM
+# =============================================================================
+# CONFIGURATION
+# =============================================================================
+
+# Toggle data source:
+# True: Use randomly generated dummy data.
+# False: Attempt to fetch live data from ThingSpeak.
+USE_DUMMY_DATA = False
+
+# ThingSpeak Configuration (Required if USE_DUMMY_DATA is False)
+# !!! REPLACE WITH YOUR ACTUAL CHANNEL ID AND READ API KEY !!!
+TS_CHANNEL_ID = "3158686"
+TS_READ_API_KEY = "UYBAXWW4HMKQIO5F"
+TS_BASE_URL = f"https://api.thingspeak.com/channels/{TS_CHANNEL_ID}/feeds.json?api_key={TS_READ_API_KEY}"
+THINGSPEAK_URL = f"{TS_BASE_URL}&results=2"
+
+# WeatherAPI Configuration (Required for fetching temperature and soil moisture)
+# !!! REPLACE WITH YOUR ACTUAL API KEY AND LOCATION !!!
+WEATHERAPI_API_KEY = "3ac64ccdd8dc4c1f840190655251811" # Placeholder for WeatherAPI Key
+WEATHERAPI_Q = "23.8314,91.2868" # Example: Agartala (lat,lon)
+WEATHERAPI_BASE_URL = "http://api.weatherapi.com/v1"
+
+# TELEGRAM CONFIGURATION (Required for alerts)
+# !!! REPLACE WITH YOUR ACTUAL BOT TOKEN AND CHAT ID !!!
+TELEGRAM_TOKEN = "8413836677:AAFL1oy4FLv4AQaKuZGxF-nxWfuS_RzkJRQ" 
+TELEGRAM_CHAT_ID = "5384764756" 
+
+# =============================================================================
+# LSTM CONFIGURATION (SYNCHRONIZED FOR 4 FEATURES)
+# =============================================================================
 LSTM_MODEL_PATH = 'lstm_model.h5'
 SCALER_PATH = 'scaler.pkl'
 SEQUENCE_LENGTH = 6 # Must match the sequence length used during training
+N_FEATURES = 4 # Water Level, Rainfall, Soil Moisture, Temperature (Order matters!)
 
 # Global variables to hold the loaded model and scaler
 lstm_model = None
@@ -38,27 +69,6 @@ def load_lstm_assets():
         scaler = None
         
 # =============================================================================
-# CONFIGURATION
-# =============================================================================
-
-# Toggle data source:
-# True: Use randomly generated dummy data.
-# False: Attempt to fetch live data from ThingSpeak.
-USE_DUMMY_DATA = False
-
-# ThingSpeak Configuration (Required if USE_DUMMY_DATA is False)
-# !!! REPLACE WITH YOUR ACTUAL CHANNEL ID AND READ API KEY !!!
-TS_CHANNEL_ID = "3158686"
-TS_READ_API_KEY = "UYBAXWW4HMKQIO5F"
-TS_BASE_URL = f"https://api.thingspeak.com/channels/{TS_CHANNEL_ID}/feeds.json?api_key={TS_READ_API_KEY}"
-THINGSPEAK_URL = f"{TS_BASE_URL}&results=2"
-
-# TELEGRAM CONFIGURATION (Required for alerts)
-# !!! REPLACE WITH YOUR ACTUAL BOT TOKEN AND CHAT ID !!!
-TELEGRAM_TOKEN = "8413836677:AAFL1oy4FLv4AQaKuZGxF-nxWfuS_RzkJRQ" 
-TELEGRAM_CHAT_ID = "5384764756" 
-
-# =============================================================================
 # FLASK SETUP
 # =============================================================================
 
@@ -69,24 +79,42 @@ DATA_FILE = 'data.json'
 
 def load_data():
     """Loads the entire application state (current, history, alerts) from data.json."""
+    
+    DEFAULT_HISTORY = {
+        "labels": [],
+        "rainfall": [],
+        "water_level": [],
+        "soil_moisture": [], # New feature
+        "temperature": []    # New feature
+    }
+    
+    DEFAULT_STATE = {
+        "current": {},
+        "history": DEFAULT_HISTORY,
+        "alerts": []
+    }
+    
+    state = DEFAULT_STATE
+    
     if os.path.exists(DATA_FILE):
         try:
             with open(DATA_FILE, 'r') as f:
-                return json.load(f)
+                state = json.load(f)
         except (json.JSONDecodeError, IOError) as e:
-            print(f"Error loading data from {DATA_FILE}: {e}. Initializing with empty structure.")
-            return {
-                "current": {},
-                "history": {"labels": [], "rainfall": [], "water_level": []},
-                "alerts": []
-            }
+            print(f"Error loading data from {DATA_FILE}: {e}. Initializing with default structure.")
+            return DEFAULT_STATE
     else:
-        print(f"{DATA_FILE} not found. Initializing with empty structure.")
-        return {
-            "current": {},
-            "history": {"labels": [], "rainfall": [], "water_level": []},
-            "alerts": []
-        }
+        print(f"{DATA_FILE} not found. Initializing with default structure.")
+        return DEFAULT_STATE
+
+    # Patch history structure if keys are missing (for backward compatibility)
+    if 'history' in state:
+        history = state['history']
+        for key, default_value in DEFAULT_HISTORY.items():
+            if key not in history:
+                history[key] = default_value
+                
+    return state
 
 def save_data(data):
     """Saves the entire application state to data.json."""
@@ -98,7 +126,7 @@ def save_data(data):
 
 
 # =============================================================================
-# TELEGRAM ALERT FUNCTION (New Functionality)
+# TELEGRAM ALERT FUNCTION
 # =============================================================================
 
 def send_telegram_alert(message: str):
@@ -149,31 +177,40 @@ def calculate_ai_risk(water_level):
 
 def predict_lstm_risk(history_data):
     """
-    Uses the LSTM model to predict the next water level and calculate risk.
+    Uses the LSTM model (4 features) to predict the next water level and calculate risk.
+    Features order: [water_level_cm, rainfall_mm, soil_moisture, temperature_c]
     """
-    global lstm_model, scaler, SEQUENCE_LENGTH
+    global lstm_model, scaler, SEQUENCE_LENGTH, N_FEATURES
     
     if lstm_model is None or scaler is None:
         return "Low", "LSTM model not available. Using instantaneous risk calculation."
 
-    # 1. Prepare the input data (features: water_level, rainfall)
+    # 1. Prepare the input data (4 features)
     water_levels = history_data['water_level']
     rainfalls = history_data['rainfall']
+    soil_moistures = history_data['soil_moisture']
+    temperatures = history_data['temperature']
     
     if len(water_levels) < SEQUENCE_LENGTH:
         return "Low", "Insufficient history data for LSTM prediction."
 
-    raw_sequence = np.array(list(zip(water_levels, rainfalls)))[-SEQUENCE_LENGTH:]
+    # Zip the last SEQUENCE_LENGTH points of all 4 features
+    raw_sequence = np.array(list(zip(
+        water_levels, 
+        rainfalls, 
+        soil_moistures, 
+        temperatures
+    )))[-SEQUENCE_LENGTH:]
 
     # 2. Scale the data
     try:
         scaled_sequence = scaler.transform(raw_sequence)
     except ValueError as e:
-        print(f"Scaling error: {e}. Check if scaler was fitted correctly.")
+        print(f"Scaling error: {e}. Check if scaler was fitted correctly for {N_FEATURES} features.")
         return "Low", "Scaling error during LSTM prediction."
     
     # 3. Reshape for LSTM input: (1, sequence_length, n_features)
-    X_input = scaled_sequence.reshape(1, SEQUENCE_LENGTH, 2)
+    X_input = scaled_sequence.reshape(1, SEQUENCE_LENGTH, N_FEATURES)
 
     # 4. Predict the next scaled water level
     try:
@@ -183,8 +220,11 @@ def predict_lstm_risk(history_data):
         return "Low", "Error running LSTM prediction."
 
     # 5. Inverse transform the prediction to get the actual water level
-    dummy_input = np.zeros((1, 2))
+    # We need a dummy input array of shape (1, N_FEATURES) where only the first feature (Water Level) is the prediction.
+    dummy_input = np.zeros((1, N_FEATURES))
     dummy_input[0, 0] = scaled_prediction
+    
+    # Inverse transform requires the full feature set structure
     predicted_water_level = scaler.inverse_transform(dummy_input)[0, 0]
     
     # 6. Calculate risk based on the predicted water level
@@ -199,11 +239,12 @@ def predict_lstm_risk(history_data):
 
 def get_dummy_data():
     """
-    Generates random dummy sensor data.
+    Generates random dummy sensor data, including soil moisture.
     """
     rainfall = round(random.uniform(0.0, 25.0), 1)
     water_level = round(random.uniform(10.0, 90.0), 1)
     temperature = round(random.uniform(20.0, 35.0), 1)
+    soil_moisture = round(random.uniform(30.0, 80.0), 1) # New feature
     
     risk, message = calculate_ai_risk(water_level)
     
@@ -211,47 +252,132 @@ def get_dummy_data():
         "rainfall_mm": rainfall,
         "water_level_cm": water_level,
         "temperature_c": temperature,
+        "soil_moisture": soil_moisture, # New feature
         "ai_risk": risk,
         "ai_message": message
     }
 
-def get_thingspeak_data():
+def get_weatherapi_data():
     """
-    Fetches live data from ThingSpeak. Falls back to dummy data on failure.
+    Fetches temperature and soil moisture data from WeatherAPI.
+    Assumes the API key and location (WEATHERAPI_Q) are configured.
     """
     # Check if configuration is set
+    if WEATHERAPI_API_KEY == "YOUR_WEATHERAPI_API_KEY":
+        print("WeatherAPI configuration missing. Skipping WeatherAPI fetch.")
+        return None
+
+    # Using the forecast endpoint to potentially access soil data (if available in the user's plan)
+    # We request 1 day forecast and extract the current hour's data.
+    url = f"{WEATHERAPI_BASE_URL}/forecast.json"
+    params = {
+        "key": WEATHERAPI_API_KEY,
+        "q": WEATHERAPI_Q,
+        "days": 1,
+        "aqi": "no",
+        "alerts": "no"
+    }
+
+    try:
+        response = requests.get(url, params=params, timeout=5)
+        response.raise_for_status()
+        data = response.json()
+
+        # Get current time hour (0-23)
+        current_dt = datetime.now()
+        current_hour = current_dt.hour
+
+        # Extract data from the forecast for the current hour
+        forecast_day = data['forecast']['forecastday'][0]
+        
+        # Find the data point closest to the current hour
+        # We iterate through the 24 hours of forecast data
+        current_hour_data = None
+        for hour_data in forecast_day['hour']:
+            # The time format is 'YYYY-MM-DD HH:MM'
+            hour_time_str = hour_data['time'].split(' ')[1].split(':')[0]
+            if int(hour_time_str) == current_hour:
+                current_hour_data = hour_data
+                break
+        
+        if current_hour_data:
+            # Extract temperature (temp_c) and soil moisture (soil_moisture)
+            # Note: soil_moisture and soil_temp_c are often only available in the Agro API plan.
+            temperature = float(current_hour_data.get('temp_c', 0.0))
+            soil_moisture = float(current_hour_data.get('soil_moisture', 0.0))
+            
+            return {
+                "temperature_c": temperature,
+                "soil_moisture": soil_moisture
+            }
+        else:
+            print("WeatherAPI: Could not find current hour data in forecast.")
+            return None
+
+    except requests.exceptions.RequestException as e:
+        print(f"Error fetching data from WeatherAPI: {e}. Skipping WeatherAPI data.")
+        return None
+    except (KeyError, IndexError, TypeError) as e:
+        print(f"Error parsing WeatherAPI response structure: {e}. Skipping WeatherAPI data.")
+        return None
+def get_thingspeak_data():
+    """
+    Fetches live data from ThingSpeak (Rainfall, Water Level) and WeatherAPI (Temperature, Soil Moisture).
+    Falls back to dummy data on critical failure.
+    """
+    
+    # --- 1. Fetch data from WeatherAPI (Temperature, Soil Moisture) ---
+    weather_data = get_weatherapi_data()
+    
+    # Initialize with fallback values (0.0)
+    temperature = 0.0
+    soil_moisture = 0.0
+    
+    if weather_data:
+        temperature = weather_data['temperature_c']
+        soil_moisture = weather_data['soil_moisture']
+    else:
+        print("WeatherAPI data unavailable. Using 0.0 for temperature/soil moisture.")
+
+    # --- 2. Fetch data from ThingSpeak (Rainfall, Water Level) ---
+    
+    # Check if ThingSpeak configuration is set
     if TS_CHANNEL_ID == "YOUR_CHANNEL_ID" or TS_READ_API_KEY == "YOUR_READ_API_KEY":
-        print("ThingSpeak configuration missing. Falling back to dummy data.")
+        print("ThingSpeak configuration missing. Falling back to dummy data for all fields.")
         return get_dummy_data()
 
     try:
         response = requests.get(THINGSPEAK_URL, timeout=5)
-        response.raise_for_status() 
+        response.raise_for_status()
         
         data = response.json()
         
         if not data.get('feeds'):
-            print("ThingSpeak returned no feeds. Falling back to dummy data.")
+            print("ThingSpeak returned no feeds. Falling back to dummy data for all fields.")
             return get_dummy_data()
 
         latest_feed = data['feeds'][0]
         
-        # Map fields: field1 -> rainfall, field2 -> water level, field3 -> temperature
         try:
             # Use 0.0 as default if field is missing or None
             rainfall = float(latest_feed.get('field1') or 0.0)
             water_level = float(latest_feed.get('field2') or 0.0)
-            temperature = float(latest_feed.get('field3') or 0.0)
+            
+            # NOTE: We ignore field3 (temperature) and field4 (soil moisture) from ThingSpeak
+            # as we prioritize WeatherAPI for these values.
+            
         except (ValueError, TypeError):
             print("Error converting ThingSpeak fields to float. Falling back to dummy data.")
             return get_dummy_data()
 
+        # --- 3. Combine and Calculate Risk ---
         risk, message = calculate_ai_risk(water_level)
         
         return {
             "rainfall_mm": rainfall,
             "water_level_cm": water_level,
             "temperature_c": temperature,
+            "soil_moisture": soil_moisture,
             "ai_risk": risk,
             "ai_message": message
         }
@@ -276,21 +402,28 @@ def update_state_with_current_data(state, current_data):
     history = state['history']
     MAX_HISTORY_SIZE = 6
     
-    # Ensure history lists are initialized
+    # Ensure history lists are initialized (should be handled by load_data, but safety check)
     if not history.get('labels'):
         history['labels'] = []
         history['rainfall'] = []
         history['water_level'] = []
+        history['soil_moisture'] = []
+        history['temperature'] = []
 
     # Keep history size manageable (e.g., last 6 entries)
+    # Only pop if the history is full AND the list is not empty (for safety/backward compatibility)
     if len(history['labels']) >= MAX_HISTORY_SIZE:
-        history['labels'].pop(0)
-        history['rainfall'].pop(0)
-        history['water_level'].pop(0)
+        if history['labels']: history['labels'].pop(0)
+        if history['rainfall']: history['rainfall'].pop(0)
+        if history['water_level']: history['water_level'].pop(0)
+        if history['soil_moisture']: history['soil_moisture'].pop(0)
+        if history['temperature']: history['temperature'].pop(0)
         
     history['labels'].append(current_time)
     history['rainfall'].append(current_data['rainfall_mm'])
     history['water_level'].append(current_data['water_level_cm'])
+    history['soil_moisture'].append(current_data['soil_moisture']) # New feature
+    history['temperature'].append(current_data['temperature_c']) # New feature
     
     # 2. Calculate instantaneous risk
     instant_risk, instant_message = calculate_ai_risk(water_level)
@@ -328,6 +461,8 @@ def update_state_with_current_data(state, current_data):
             f"Time: {current_time}\n"
             f"Water Level: {water_level:.1f} cm\n"
             f"Rainfall: {current_data['rainfall_mm']} mm\n"
+            f"Soil Moisture: {current_data['soil_moisture']} %\n" # Include new feature
+            f"Temperature: {current_data['temperature_c']} °C\n" # Include new feature
             f"Recommendation: {final_recommendation}"
         )
         
@@ -415,6 +550,9 @@ def fetch_historical_data(field_id, results=7):
         elif field_id == 3: # Temperature (°C)
             data_points = [random.uniform(25, 35) for _ in range(results)]
             unit = "°C"
+        elif field_id == 4: # Soil Moisture (%)
+            data_points = [random.uniform(30, 80) for _ in range(results)]
+            unit = "%"
         else:
             data_points = [0] * results
             unit = ""
@@ -444,6 +582,7 @@ def fetch_historical_data(field_id, results=7):
         if field_id == 1: unit = "mm"
         elif field_id == 2: unit = "cm"
         elif field_id == 3: unit = "°C"
+        elif field_id == 4: unit = "%"
         else: unit = ""
         
         # ThingSpeak returns feeds in chronological order (oldest first)
@@ -482,6 +621,12 @@ def get_waterlevel_history():
 def get_temperature_history():
     # Fetch 7 data points for Temperature (Field 3)
     history = fetch_historical_data(field_id=3, results=7)
+    return jsonify(history)
+
+@app.route('/api/soilmoisture', methods=['GET'])
+def get_soilmoisture_history():
+    # Fetch 7 data points for Soil Moisture (Field 4)
+    history = fetch_historical_data(field_id=4, results=7)
     return jsonify(history)
 
 

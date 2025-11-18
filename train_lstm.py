@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import os
 from sklearn.preprocessing import MinMaxScaler
+import tensorflow as tf
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM, Dense
 import joblib
@@ -11,7 +12,7 @@ DATASET_PATH = 'flood_dataset_2000_rows.csv'
 MODEL_OUTPUT_PATH = 'lstm_model.h5'
 SCALER_OUTPUT_PATH = 'scaler.pkl'
 SEQUENCE_LENGTH = 6 # Number of previous time steps to use as input
-N_FEATURES = 2 # We are using Water Level and Rainfall as features
+N_FEATURES = 4 # We are using Water Level, Rainfall, Soil Moisture, and Temperature as features
 EPOCHS = 50
 BATCH_SIZE = 32
 
@@ -33,7 +34,7 @@ def train_model():
 
     print(f"Loading data from {DATASET_PATH}...")
     try:
-        # Assuming the CSV contains columns like 'Water Level (cm)' and 'Rainfall (mm)'
+        # Assuming the CSV contains columns like 'water_level_cm', 'rainfall_mm', 'soil_moisture', 'temperature_c'
         df = pd.read_csv(DATASET_PATH)
     except Exception as e:
         print(f"Error reading CSV: {e}")
@@ -41,9 +42,8 @@ def train_model():
 
     # --- 1. Data Preprocessing ---
     # Select the features used for prediction (Water Level and Rainfall)
-    # NOTE: The column names here must match the actual column names in your CSV.
-    # Assuming standard column names based on common sensor data:
-    feature_cols = ['Water Level (cm)', 'Rainfall (mm)']
+    # NOTE: The order matters! Water Level (the target) must be the first column (index 0).
+    feature_cols = ['water_level_cm', 'rainfall_mm', 'soil_moisture', 'temperature_c']
     
     # Check if required columns exist
     missing_cols = [col for col in feature_cols if col not in df.columns]
@@ -84,7 +84,7 @@ def train_model():
     model.fit(X, y, epochs=EPOCHS, batch_size=BATCH_SIZE, verbose=1)
 
     # --- 5. Save Model ---
-    model.save(MODEL_OUTPUT_PATH)
+    tf.keras.models.save_model(model, MODEL_OUTPUT_PATH)
     print(f"Model trained and saved to {MODEL_OUTPUT_PATH}")
 
 if __name__ == '__main__':
