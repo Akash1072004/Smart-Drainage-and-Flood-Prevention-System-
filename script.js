@@ -84,35 +84,66 @@ function updateSystemStatus(riskLevel) {
 }
 
 // --- Data Rendering Functions ---
+function extractPredictedLevel(message) {
+    // Extracts the first number followed by "cm"
+    const match = message.match(/(\d+\.?\d*)\s*cm/i);
+    return match ? parseFloat(match[1]) : null;
+}
 
 function renderDataCards(data) {
     const dataElements = [
         { id: "rain", value: data.rainfall_mm.toFixed(1) },
         { id: "water", value: data.water_level_cm.toFixed(1) },
-        { id: "temp", value: data.temperature_c.toFixed(1) },
-        { id: "risk", value: data.ai_risk, isRisk: true }
+        { id: "temp", value: data.temperature_c.toFixed(1) }
     ];
 
+    // 1. Update standard data cards
     dataElements.forEach(item => {
         const element = document.getElementById(item.id);
-        if (element.innerText !== item.value) {
+        if (element && element.innerText !== item.value) {
             // Apply animation class if data has changed
             element.classList.remove('animate-update');
             // Force reflow/repaint to restart animation
             void element.offsetWidth;
             element.classList.add('animate-update');
         }
-        element.innerText = item.value;
-
-        if (item.isRisk) {
-            element.className = `data-value risk-level risk-${item.value.toLowerCase()}`;
-        }
+        if (element) element.innerText = item.value;
     });
 
-    document.getElementById("ai-message").innerText = data.ai_message;
-    document.getElementById("ai-recommendation").innerText = data.ai_recommendation;
+    // 2. Update Prediction Panel
+    const risk = data.ai_risk || 'Low';
+    const riskStatusElement = document.getElementById("ai-risk-status");
+    const forecastMetricElement = document.getElementById("ai-forecast-metric");
+    const recommendationMsgElement = document.getElementById("ai-recommendation-msg");
+    const predictionPanel = document.getElementById("prediction-panel");
 
-    updateSystemStatus(data.ai_risk);
+    // Set risk status text and class
+    if (riskStatusElement) {
+        riskStatusElement.innerText = risk;
+        riskStatusElement.className = `risk-status risk-${risk.toLowerCase()}`;
+    }
+
+    // Apply risk class to the main panel for background color
+    if (predictionPanel) {
+        predictionPanel.classList.remove('risk-low', 'risk-moderate', 'risk-high');
+        predictionPanel.classList.add(`risk-${risk.toLowerCase()}`);
+    }
+
+    // Extract predicted water level using helper function
+    const message = data.ai_message || 'N/A';
+    const rawPredictedLevel = extractPredictedLevel(message);
+    const predictedLevelText = rawPredictedLevel !== null ? `${rawPredictedLevel.toFixed(1)} cm` : 'N/A';
+
+    if (forecastMetricElement) {
+        forecastMetricElement.innerText = predictedLevelText;
+    }
+
+    if (recommendationMsgElement) {
+        recommendationMsgElement.innerText = data.ai_recommendation || 'Awaiting analysis...';
+    }
+
+    // 3. Update system status indicator
+    updateSystemStatus(risk);
 }
 
 function renderAlerts(alerts) {
@@ -190,7 +221,7 @@ function createChart(elementId, type, label, data, labels, borderColor, backgrou
     });
 }
 
-function initializeDashboardCharts(history) {
+function initializeDashboardCharts(history, current) {
     // Destroy existing instances if they exist (important for dynamic loading)
     if (rainChartInstance) rainChartInstance.destroy();
     if (waterChartInstance) waterChartInstance.destroy();
@@ -201,14 +232,44 @@ function initializeDashboardCharts(history) {
         'rgba(0, 123, 255, 1)', 'rgba(0, 123, 255, 0.2)', 'mm'
     );
 
-    // Water Level Chart (Dashboard)
+    // Water Level Chart (Dashboard) - Enhanced with Prediction
+    const predictedLevel = extractPredictedLevel(current.ai_message);
+    const waterLabels = [...history.labels];
+    const waterData = [...history.water_level];
+
+    if (predictedLevel !== null) {
+        // Add 'Forecast' label and a null point followed by the prediction value
+        waterLabels.push('Forecast');
+        waterData.push(null, predictedLevel);
+    }
+
     waterChartInstance = createChart(
-        'waterChart', 'line', 'Water Level (cm)', history.water_level, history.labels,
+        'waterChart', 'line', 'Water Level (cm)', waterData, waterLabels,
         'rgba(40, 167, 69, 1)', 'rgba(40, 167, 69, 0.2)', 'cm'
     );
+
+    // Add a second dataset for the prediction line (dotted line)
+    if (predictedLevel !== null) {
+        const predictionDataset = Array(history.water_level.length).fill(null);
+        // The prediction line starts at the last historical point and goes to the forecast point
+        predictionDataset.push(history.water_level[history.water_level.length - 1], predictedLevel);
+
+        waterChartInstance.data.datasets.push({
+            label: 'Predicted Level',
+            data: predictionDataset,
+            borderColor: 'rgba(255, 99, 132, 1)', // Red/Pink for prediction
+            backgroundColor: 'transparent',
+            borderDash: [5, 5], // Dotted line
+            pointRadius: [0, 0, 5], // Only show point on the forecast value
+            pointBackgroundColor: 'rgba(255, 99, 132, 1)',
+            tension: 0.3,
+            fill: false
+        });
+        waterChartInstance.update();
+    }
 }
 
-function updateDashboardCharts(history) {
+function updateDashboardCharts(history, current) {
     if (rainChartInstance) {
         rainChartInstance.data.labels = history.labels;
         rainChartInstance.data.datasets[0].data = history.rainfall;
@@ -216,8 +277,48 @@ function updateDashboardCharts(history) {
     }
 
     if (waterChartInstance) {
-        waterChartInstance.data.labels = history.labels;
-        waterChartInstance.data.datasets[0].data = history.water_level;
+        const predictedLevel = extractPredictedLevel(current.ai_message);
+        const waterLabels = [...history.labels];
+        const waterData = [...history.water_level];
+        
+        // Reset datasets to handle dynamic prediction presence
+        waterChartInstance.data.datasets = [];
+
+        if (predictedLevel !== null) {
+            waterLabels.push('Forecast');
+            waterData.push(null, predictedLevel);
+        }
+
+        // 1. Main Water Level Dataset
+        waterChartInstance.data.labels = waterLabels;
+        waterChartInstance.data.datasets.push({
+            label: 'Water Level (cm)',
+            data: waterData,
+            borderColor: 'rgba(40, 167, 69, 1)',
+            backgroundColor: 'rgba(40, 167, 69, 0.2)',
+            tension: 0.3,
+            fill: true
+        });
+
+        // 2. Prediction Dataset (Dotted line)
+        if (predictedLevel !== null) {
+            const predictionDataset = Array(history.water_level.length).fill(null);
+            // The prediction line starts at the last historical point and goes to the forecast point
+            predictionDataset.push(history.water_level[history.water_level.length - 1], predictedLevel);
+
+            waterChartInstance.data.datasets.push({
+                label: 'Predicted Level',
+                data: predictionDataset,
+                borderColor: 'rgba(255, 99, 132, 1)',
+                backgroundColor: 'transparent',
+                borderDash: [5, 5],
+                pointRadius: [0, 0, 5],
+                pointBackgroundColor: 'rgba(255, 99, 132, 1)',
+                tension: 0.3,
+                fill: false
+            });
+        }
+        
         waterChartInstance.update();
     }
 }
@@ -346,7 +447,7 @@ const ROUTES = {
         init: (data) => {
             renderDataCards(data.current);
             renderAlerts(data.alerts);
-            initializeDashboardCharts(data.history);
+            initializeDashboardCharts(data.history, data.current);
             initializeMap(); // Re-initialize map when returning to dashboard
             // Re-attach location check listener
             document.getElementById('checkLocationBtn').addEventListener('click', checkLocationSafety);
@@ -355,7 +456,7 @@ const ROUTES = {
             // Only update dynamic elements
             renderDataCards(data.current);
             renderAlerts(data.alerts);
-            updateDashboardCharts(data.history);
+            updateDashboardCharts(data.history, data.current);
             // Map markers are static in this implementation, so no update needed.
         }
     },
@@ -379,7 +480,7 @@ function updateCurrentPageData(page, data) {
         // Default update logic for dashboard if no specific update function exists
         renderDataCards(data.current);
         renderAlerts(data.alerts);
-        updateDashboardCharts(data.history);
+        updateDashboardCharts(data.history, data.current);
     }
 }
 

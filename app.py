@@ -53,17 +53,16 @@ TS_READ_API_KEY = "UYBAXWW4HMKQIO5F"
 TS_BASE_URL = f"https://api.thingspeak.com/channels/{TS_CHANNEL_ID}/feeds.json?api_key={TS_READ_API_KEY}"
 THINGSPEAK_URL = f"{TS_BASE_URL}&results=2"
 
-# Optional: n8n Webhook URL
-# Replace with your n8n webhook URL if you want to send data.
-N8N_WEBHOOK_URL = "YOUR_N8N_WEBHOOK_URL"
+# TELEGRAM CONFIGURATION (Required for alerts)
+# !!! REPLACE WITH YOUR ACTUAL BOT TOKEN AND CHAT ID !!!
+TELEGRAM_TOKEN = "8413836677:AAFL1oy4FLv4AQaKuZGxF-nxWfuS_RzkJRQ" 
+TELEGRAM_CHAT_ID = "5384764756" 
 
 # =============================================================================
 # FLASK SETUP
 # =============================================================================
 
 app = Flask(__name__, static_folder='.', static_url_path='/')
-# Enable CORS for all routes, allowing the frontend (e.g., running on Live Server)
-# to fetch data from this backend running on a different port (e.g., 5000).
 CORS(app)
 
 DATA_FILE = 'data.json'
@@ -76,7 +75,6 @@ def load_data():
                 return json.load(f)
         except (json.JSONDecodeError, IOError) as e:
             print(f"Error loading data from {DATA_FILE}: {e}. Initializing with empty structure.")
-            # Fallback to an empty structure if file is corrupted or unreadable
             return {
                 "current": {},
                 "history": {"labels": [], "rainfall": [], "water_level": []},
@@ -100,17 +98,42 @@ def save_data(data):
 
 
 # =============================================================================
+# TELEGRAM ALERT FUNCTION (New Functionality)
+# =============================================================================
+
+def send_telegram_alert(message: str):
+    """
+    Sends a message to the configured Telegram chat/channel.
+    """
+    # Safety check for placeholder keys
+    if TELEGRAM_TOKEN == "YOUR_TELEGRAM_BOT_TOKEN" or TELEGRAM_CHAT_ID == "YOUR_TELEGRAM_CHAT_ID":
+        print("Telegram configuration missing. Skipping alert.")
+        return
+
+    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+    
+    # URL parameters required by Telegram
+    params = {
+        "chat_id": TELEGRAM_CHAT_ID,
+        "text": message
+    }
+
+    try:
+        # Send the alert (fire-and-forget request)
+        response = requests.get(url, params=params, timeout=5)
+        response.raise_for_status() 
+        print(f"Telegram alert sent successfully.")
+    except requests.exceptions.RequestException as e:
+        print(f"Error sending Telegram alert: {e}")
+
+
+# =============================================================================
 # DATA LOGIC
 # =============================================================================
 
 def calculate_ai_risk(water_level):
     """
     Calculates the AI risk status based on the water level.
-    
-    Logic:
-    If water level > 70 -> High risk
-    If between 40–70 -> Moderate
-    Else -> Low
     """
     if water_level > 70:
         risk = "High"
@@ -131,27 +154,18 @@ def predict_lstm_risk(history_data):
     global lstm_model, scaler, SEQUENCE_LENGTH
     
     if lstm_model is None or scaler is None:
-        # Fallback if model/scaler failed to load (due to missing files or dependency issues)
         return "Low", "LSTM model not available. Using instantaneous risk calculation."
 
     # 1. Prepare the input data (features: water_level, rainfall)
-    # We need the last SEQUENCE_LENGTH points.
     water_levels = history_data['water_level']
     rainfalls = history_data['rainfall']
-    
-    # Combine into a 2D array: [[WL1, R1], [WL2, R2], ...]
-    # Note: We assume the history lists are already padded/truncated to the correct size
-    # by update_state_with_current_data, but we ensure we only use the required length.
     
     if len(water_levels) < SEQUENCE_LENGTH:
         return "Low", "Insufficient history data for LSTM prediction."
 
-    # Use only the required sequence length (last SEQUENCE_LENGTH points)
-    # We zip and convert to numpy array
     raw_sequence = np.array(list(zip(water_levels, rainfalls)))[-SEQUENCE_LENGTH:]
 
     # 2. Scale the data
-    # NOTE: The scaler must be fitted on the training data for both features (water_level, rainfall).
     try:
         scaled_sequence = scaler.transform(raw_sequence)
     except ValueError as e:
@@ -162,7 +176,6 @@ def predict_lstm_risk(history_data):
     X_input = scaled_sequence.reshape(1, SEQUENCE_LENGTH, 2)
 
     # 4. Predict the next scaled water level
-    # We predict the next water level (feature 0)
     try:
         scaled_prediction = lstm_model.predict(X_input, verbose=0)[0][0]
     except Exception as e:
@@ -170,12 +183,8 @@ def predict_lstm_risk(history_data):
         return "Low", "Error running LSTM prediction."
 
     # 5. Inverse transform the prediction to get the actual water level
-    # We need a dummy array to inverse transform only the water level (first feature)
-    # The scaler expects a 2D array with the same number of features it was trained on.
     dummy_input = np.zeros((1, 2))
-    dummy_input[0, 0] = scaled_prediction # Put prediction in the water level column
-    
-    # Inverse transform the water level column
+    dummy_input[0, 0] = scaled_prediction
     predicted_water_level = scaler.inverse_transform(dummy_input)[0, 0]
     
     # 6. Calculate risk based on the predicted water level
@@ -217,7 +226,7 @@ def get_thingspeak_data():
 
     try:
         response = requests.get(THINGSPEAK_URL, timeout=5)
-        response.raise_for_status() # Raise HTTPError for bad responses (4xx or 5xx)
+        response.raise_for_status() 
         
         data = response.json()
         
@@ -259,6 +268,10 @@ def update_state_with_current_data(state, current_data):
     water_level = current_data['water_level_cm']
     current_time = datetime.now().strftime("%H:%M")
     
+    # 0. Initialize alert status for the frontend
+    telegram_alert_message = ""
+    current_data['telegram_alert_sent'] = ""
+    
     # 1. Update history with the new data point
     history = state['history']
     MAX_HISTORY_SIZE = 6
@@ -294,7 +307,7 @@ def update_state_with_current_data(state, current_data):
         # If LSTM predicts high risk, prioritize the predictive alert
         final_recommendation = f"PREDICTIVE ALERT: {lstm_message} Prepare for potential high water levels."
         if instant_risk == "Low":
-             # If current risk is low but prediction is high, elevate the overall risk status
+            # If current risk is low but prediction is high, elevate the overall risk status
             final_risk = "Moderate"
             final_message = "Water level is currently normal, but predictive model forecasts high risk."
     elif lstm_model is not None and lstm_risk == "Moderate":
@@ -303,20 +316,32 @@ def update_state_with_current_data(state, current_data):
         # Use instantaneous message and a standard recommendation
         final_recommendation = "System stable. Monitor closely."
         
-    # If instantaneous risk is high, override the message/risk
+    # If instantaneous risk is high, override the message/risk AND TRIGGER ALERT
     if instant_risk == "High":
         final_risk = instant_risk
         final_message = instant_message
         final_recommendation = "IMMEDIATE ACTION: Critical water level detected. Initiate flood mitigation procedures."
         
-    # Update current data
+        # --- TELEGRAM ALERT TRIGGER & DASHBOARD CONFIRMATION ---
+        telegram_alert_message = (
+            f"🚨 CRITICAL HIGH RISK ALERT 🚨\n"
+            f"Time: {current_time}\n"
+            f"Water Level: {water_level:.1f} cm\n"
+            f"Rainfall: {current_data['rainfall_mm']} mm\n"
+            f"Recommendation: {final_recommendation}"
+        )
+        
+        send_telegram_alert(telegram_alert_message)
+        current_data['telegram_alert_sent'] = telegram_alert_message
+        
+    # Update current data with final determined risk
     current_data['ai_risk'] = final_risk
     current_data['ai_message'] = final_message
     current_data['ai_recommendation'] = final_recommendation
     
     state['current'] = current_data
     
-    # 5. Generate alerts (using the instantaneous risk for immediate alerts)
+    # 5. Generate alerts for the alerts table (using the instantaneous risk for immediate alerts)
     alerts = state['alerts']
     
     new_alert = None
@@ -331,18 +356,6 @@ def update_state_with_current_data(state, current_data):
         state['alerts'] = alerts[:10]
         
     return state
-
-def send_to_n8n(data):
-    """
-    (Optional) Sends the current data payload to an n8n webhook.
-    """
-    if N8N_WEBHOOK_URL and N8N_WEBHOOK_URL != "YOUR_N8N_WEBHOOK_URL":
-        try:
-            # Non-blocking send (timeout=1 for quick fire-and-forget)
-            requests.post(N8N_WEBHOOK_URL, json=data, timeout=1)
-            print("Data successfully sent to n8n webhook.")
-        except requests.exceptions.RequestException as e:
-            print(f"Error sending data to n8n: {e}")
 
 # =============================================================================
 # API ENDPOINTS
@@ -383,8 +396,6 @@ def get_sensor_data():
         else:
             response_data["current"]["ai_message"] += " (Live or fallback sensor data)."
             
-        # Optional: Send data to n8n webhook (using the current data part)
-        send_to_n8n(response_data["current"])
     
     return jsonify(response_data)
 

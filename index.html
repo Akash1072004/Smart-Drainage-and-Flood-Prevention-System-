@@ -65,20 +65,17 @@
                         <span class="unit">°C</span>
                     </div>
                 </div>
-                <div class="card data-card ai-risk-card">
-                    <h3>AI Flood Risk 🔮</h3>
-                    <p id="risk" class="data-value risk-level">--</p>
-                    <p id="ai-message" class="ai-message">Analyzing current conditions...</p>
+                <!-- New Prediction Panel -->
+                <div id="prediction-panel" class="card prediction-panel">
+                    <h2>Flood Forecast 🔮</h2>
+                    <div class="forecast-details">
+                        <p>Risk Status: <span id="ai-risk-status" class="risk-status">--</span></p>
+                        <p>Predicted Level: <span id="ai-forecast-metric" class="forecast-metric">--</span></p>
+                    </div>
+                    <p id="ai-recommendation-msg" class="recommendation-msg">Awaiting analysis...</p>
                 </div>
             </section>
 
-            <!-- AI Recommendations Section -->
-            <section class="ai-recommendation-section">
-                <div class="card ai-recommendation-card">
-                    <h2>AI Recommendations & Ideas 💡 (AI Feature)</h2>
-                    <p id="ai-recommendation" class="ai-recommendation-text">Awaiting analysis...</p>
-                </div>
-            </section>
 
             <!-- Charts Section -->
             <section class="charts-section">

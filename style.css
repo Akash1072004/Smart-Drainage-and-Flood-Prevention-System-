@@ -207,19 +207,102 @@ body.dark-mode .full-page-data-section p {
     color: #6c757d;
 }
 
-.ai-risk-card {
-    background-color: #e9f7ff; /* Light blue background */
-    border: 1px solid #007bff;
+/* --- Prediction Panel Styles --- */
+.prediction-panel {
+    grid-column: 1 / -1; /* Make it span the full width of the data-cards-section */
+    text-align: center;
+    padding: 30px 20px;
+    transition: background-color 0.5s ease, border-color 0.5s ease;
+    border: 3px solid transparent;
 }
 
-.risk-level {
-    font-size: 3em;
+.prediction-panel h2 {
+    font-size: 1.8em;
+    margin-bottom: 15px;
+}
+
+.forecast-details {
+    display: flex;
+    justify-content: center;
+    gap: 50px;
+    margin-bottom: 20px;
+}
+
+.forecast-details p {
+    font-size: 1.2em;
+    font-weight: 500;
+    margin: 0;
+}
+
+.risk-status {
+    font-size: 1.5em;
+    font-weight: bold;
+    padding: 5px 10px;
+    border-radius: 5px;
+    display: inline-block;
+    min-width: 100px;
+    text-align: center;
+}
+
+.forecast-metric {
+    font-size: 1.5em;
+    font-weight: bold;
     color: #007bff;
 }
 
-.ai-message {
+.recommendation-msg {
+    font-size: 1.1em;
     font-style: italic;
-    color: #6c757d;
+    margin-top: 10px;
+}
+
+/* Color Coding - Light Mode */
+.risk-low {
+    background-color: #d4edda; /* Light Green */
+    color: #155724; /* Dark Green Text */
+    border-color: #28a745;
+}
+
+.risk-moderate {
+    background-color: #fff3cd; /* Light Yellow */
+    color: #856404; /* Dark Yellow Text */
+    border-color: #ffc107;
+}
+
+.risk-high {
+    background-color: #f8d7da; /* Light Red */
+    color: #721c24; /* Dark Red Text */
+    border-color: #dc3545;
+    animation: pulse-alert 1.5s infinite;
+}
+
+/* Color Coding - Dark Mode */
+body.dark-mode .prediction-panel {
+    background-color: #161b22;
+    border: 3px solid #30363d;
+}
+
+body.dark-mode .forecast-metric {
+    color: #58a6ff;
+}
+
+body.dark-mode .risk-low {
+    background-color: #161b22;
+    color: #28a745;
+    border-color: #28a745;
+}
+
+body.dark-mode .risk-moderate {
+    background-color: #161b22;
+    color: #ffc107;
+    border-color: #ffc107;
+}
+
+body.dark-mode .risk-high {
+    background-color: #161b22;
+    color: #dc3545;
+    border-color: #dc3545;
+    animation: pulse-alert-dark 1.5s infinite;
 }
 
 /* Charts Section */
@@ -293,26 +376,6 @@ body.dark-mode .full-page-data-section p {
     border-radius: 0 0 8px 8px;
 }
 
-/* AI Recommendation Section */
-.ai-recommendation-section {
-    margin-bottom: 30px;
-}
-
-.ai-recommendation-card {
-    background-color: #fff3cd; /* Light yellow/gold for attention */
-    border: 1px solid #ffc107;
-}
-
-.ai-recommendation-card h2 {
-    color: #856404; /* Darker text for contrast */
-}
-
-.ai-recommendation-text {
-    font-size: 1.1em;
-    font-weight: 500;
-    color: #333;
-    margin-top: 15px;
-}
 
 /* About Section */
 .about-section p {
@@ -422,23 +485,7 @@ body.dark-mode .unit, body.dark-mode .ai-message {
     color: #8b949e; /* Slightly darker text */
 }
 
-body.dark-mode .ai-risk-card {
-    background-color: #161b22; /* Use surface color for consistency */
-    border: 1px solid #58a6ff;
-}
 
-body.dark-mode .risk-level {
-    color: #58a6ff;
-}
-
-body.dark-mode .ai-recommendation-card {
-    background-color: #161b22; /* Use surface color for consistency */
-    border: 1px solid #e3b341; /* Yellow/Gold for warning */
-}
-
-body.dark-mode .ai-recommendation-card h2 {
-    color: #e3b341;
-}
 
 body.dark-mode .alerts-card th {
     background-color: #161b22;
