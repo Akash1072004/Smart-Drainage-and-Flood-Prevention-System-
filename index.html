@@ -28,7 +28,7 @@
 
     <nav class="main-nav">
         <a href="#dashboard" class="nav-link active" data-page="dashboard">🏠 Dashboard</a>
-        <a href="#rainfall" class="nav-link" data-page="rainfall">🌧️ Rainfall Data</a>
+        <a href="#rainfall" class="nav-link" data-page="rainfall">🌧️ Rainfall intensity Data</a>
         <a href="#waterlevel" class="nav-link" data-page="waterlevel">🌊 Water Level Data</a>
         <a href="#flowrate" class="nav-link" data-page="flowrate">💧 Flow Rate Data</a>
         <a href="#temperature" class="nav-link" data-page="temperature">🌡️ Temperature Data</a>
@@ -45,9 +45,9 @@
                 <div class="card data-card rain-card">
                     <div class="card-animation-bg rain-animation-bg"></div>
                     <div class="card-content">
-                        <h3>Rainfall 🌧️</h3>
+                        <h3>Rainfall intensity🌧️</h3>
                         <p id="rain" class="data-value">--</p>
-                        <span class="unit">mm</span>
+                        <span class="unit">mm/hr</span>
                     </div>
                 </div>
                 <div class="card data-card water-card">
@@ -63,7 +63,7 @@
                     <div class="card-content">
                         <h3>Flow Rate 💧</h3>
                         <p id="flow" class="data-value">--</p>
-                        <span class="unit">ml/min</span>
+                        <span class="unit">litre/min</span>
                     </div>
                 </div>
                 <div class="card data-card temp-card">
@@ -86,11 +86,11 @@
                             <input type="number" id="manualWaterLevel" step="0.1" required min="0" value="30.0">
                         </div>
                         <div class="input-group">
-                            <label for="manualRainfall">Rainfall (mm):</label>
+                            <label for="manualRainfall">Rainfall intensity (mm/hr):</label>
                             <input type="number" id="manualRainfall" step="0.1" required min="0" value="10.0">
                         </div>
                         <div class="input-group">
-                            <label for="manualFlowRate">Flow Rate (ml/min):</label>
+                            <label for="manualFlowRate">Flow Rate (litre/min):</label>
                             <input type="number" id="manualFlowRate" step="0.1" required min="0" value="5000.0">
                         </div>
                         <button type="submit" id="calculateManualAlertBtn">Calculate Alert</button>
