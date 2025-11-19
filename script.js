@@ -1,7 +1,7 @@
 // --- Configuration ---
 // Replace this with your actual Firebase API URL
 const API_ENDPOINT = "http://127.0.0.1:5000/data";
-const REFRESH_INTERVAL_MS = 5000; // 5 seconds
+const REFRESH_INTERVAL_MS = 300000; // 5 minutes
 
 // API Endpoints for Historical Data (Synchronized with app.py)
 const HISTORY_ENDPOINTS = {
@@ -470,6 +470,70 @@ function initializeMap() {
             .bindPopup(`${m.name}: Flood Risk ${m.risk}`);
     });
 }
+
+// --- Manual Input Logic ---
+
+async function calculateManualAlert(event) {
+    event.preventDefault(); // Prevent default form submission
+
+    const waterLevel = parseFloat(document.getElementById('manualWaterLevel').value);
+    const rainfall = parseFloat(document.getElementById('manualRainfall').value);
+    const flowRate = parseFloat(document.getElementById('manualFlowRate').value);
+
+    const resultStatusElement = document.getElementById('manual-alert-status');
+    const resultMessageElement = document.getElementById('manual-alert-message');
+
+    if (isNaN(waterLevel) || isNaN(rainfall) || isNaN(flowRate)) {
+        resultStatusElement.innerText = 'Error';
+        resultMessageElement.innerText = 'Please enter valid numbers for all fields.';
+        resultStatusElement.className = 'risk-status risk-unknown';
+        return;
+    }
+
+    resultMessageElement.innerText = 'Calculating...';
+    resultStatusElement.className = 'risk-status risk-unknown';
+    resultStatusElement.innerText = '...';
+
+    try {
+        const response = await fetch('http://127.0.0.1:5000/manual_alert', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                water_level: waterLevel,
+                rainfall: rainfall,
+                flow_rate: flowRate
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const result = await response.json();
+        
+        // The backend now returns the full updated state (dashboardData)
+        currentData = result; // Update global data
+        handleRouting(result); // Refresh the dashboard with the new data
+
+        // Extract risk and message from the updated current state for the manual input panel feedback
+        const risk = result.current.ai_risk || 'Unknown';
+        const message = result.current.ai_message || 'Manual update complete.';
+
+        resultStatusElement.innerText = risk;
+        // Display a simplified success message for the manual input panel
+        resultMessageElement.innerText = `Manual data applied. New risk: ${risk}.`;
+        resultStatusElement.className = `risk-status risk-${risk.toLowerCase()}`;
+
+    } catch (error) {
+        console.error('Error calculating manual alert:', error);
+        resultStatusElement.innerText = 'Error';
+        resultMessageElement.innerText = 'Failed to connect to server.';
+        resultStatusElement.className = 'risk-status risk-unknown';
+    }
+}
+
 // --- Routing and Page Rendering Logic ---
 
 const ROUTES = {
@@ -482,6 +546,8 @@ const ROUTES = {
             initializeMap(); // Re-initialize map when returning to dashboard
             // Re-attach location check listener
             document.getElementById('checkLocationBtn').addEventListener('click', checkLocationSafety);
+            // Attach manual input listener
+            document.getElementById('manualInputForm').addEventListener('submit', calculateManualAlert);
         },
         update: (data) => {
             // Only update dynamic elements
@@ -691,6 +757,13 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // 3. Fetch initial data and render the first page
     fetchAndRouteData();
+
+    // 4. Attach manual input listener for the initial dashboard load (if it's the default page)
+    // Note: This is also handled in ROUTES['dashboard'].init, but adding here for robustness if dashboard is the initial page.
+    const manualForm = document.getElementById('manualInputForm');
+    if (manualForm) {
+        manualForm.addEventListener('submit', calculateManualAlert);
+    }
 
     // 4. Set up auto-refresh
     startAutoRefresh();

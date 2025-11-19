@@ -20,7 +20,7 @@ import joblib # To load the scaler
 # Toggle data source:
 # True: Use randomly generated dummy data.
 # False: Attempt to fetch live data from ThingSpeak.
-USE_DUMMY_DATA = True
+USE_DUMMY_DATA = False
 
 # ThingSpeak Configuration (Required if USE_DUMMY_DATA is False)
 # !!! REPLACE WITH YOUR ACTUAL CHANNEL ID AND READ API KEY !!!
@@ -91,7 +91,9 @@ def load_data():
     DEFAULT_STATE = {
         "current": {},
         "history": DEFAULT_HISTORY,
-        "alerts": []
+        "alerts": [],
+        "mode": "AUTO", # AUTO or MANUAL_STATIC
+        "static_sensor_data": None # Stores the last manual input data
     }
     
     state = DEFAULT_STATE
@@ -168,10 +170,10 @@ def calculate_ai_risk(water_level):
     """
     Calculates the AI risk status based on the water level.
     """
-    if water_level > 30:
+    if water_level > 90:
         risk = "High"
         message = "Critical water level detected. Immediate action required."
-    elif 20 <= water_level <= 30:
+    elif 30 <= water_level <= 90:
         risk = "Moderate"
         message = "Water level is elevated. Monitor closely."
     else:
@@ -545,6 +547,57 @@ def index():
     """Serves the main HTML file."""
     return send_file('index.html')
 
+@app.route('/manual_alert', methods=['POST'])
+def manual_alert_calculation():
+    """
+    Accepts manual input data (water level, rainfall, flow rate), updates the application state,
+    and returns the full updated state for dashboard refresh.
+    """
+    from flask import request # Import request locally if not imported globally
+    
+    try:
+        data = request.get_json()
+        water_level = float(data.get('water_level', 0.0))
+        rainfall = float(data.get('rainfall', 0.0))
+        flow_rate = float(data.get('flow_rate', 0.0))
+        # 1. Get the current state from the file first to retrieve the last known temperature
+        state = load_data()
+        
+        # Use the last known temperature from the current state, defaulting to 0.0 if not found
+        temperature = state.get('current', {}).get('temperature_c', 0.0)
+        
+        # 2. Create new sensor data structure
+        new_manual_data = {
+            "rainfall_mm": rainfall,
+            "water_level_cm": water_level,
+            "temperature_c": temperature, # Use last known temperature
+            "flow_rate_mlpm": flow_rate,
+            # Instantaneous risk will be calculated in update_state_with_current_data
+        }
+        
+        # 3. Set the mode to manual static and store the data
+        state['mode'] = 'MANUAL_STATIC'
+        state['static_sensor_data'] = new_manual_data
+        
+        # 4. Update the state (history, alerts, risk messages) using the manual data
+        updated_state = update_state_with_current_data(state, new_manual_data)
+        
+        # 5. Save the updated state back to the file
+        save_data(updated_state)
+        
+        # 5. Prepare response data
+        response_data = updated_state
+        
+        # Add a message indicating manual mode update
+        if 'current' in response_data:
+            response_data["current"]["ai_message"] += " (Manual data update)."
+            
+        return jsonify(response_data), 200
+        
+    except Exception as e:
+        print(f"Error processing manual alert request: {e}")
+        return jsonify({"risk": "Error", "message": f"Invalid input or server error: {e}"}), 400
+
 @app.route('/data', methods=['GET'])
 def get_sensor_data():
     """
@@ -553,24 +606,33 @@ def get_sensor_data():
     # 1. Get the current state from the file
     state = load_data()
     
-    # 2. Get new sensor data
-    if USE_DUMMY_DATA:
+    # 2. Get new sensor data based on mode
+    if state.get('mode') == 'MANUAL_STATIC' and state.get('static_sensor_data') is not None:
+        # Use the stored static data and skip history/alert updates
+        response_data = state
+        print("Serving static manual data. Skipping state update.")
+    elif USE_DUMMY_DATA:
         new_sensor_data = get_dummy_data()
+        # 3. Update the state (history, alerts, risk messages)
+        updated_state = update_state_with_current_data(state, new_sensor_data)
+        # 4. Save the updated state back to the file
+        save_data(updated_state)
+        # 5. Prepare response data
+        response_data = updated_state
     else:
         new_sensor_data = get_thingspeak_data()
-        
-    # 3. Update the state (history, alerts, risk messages)
-    updated_state = update_state_with_current_data(state, new_sensor_data)
-    
-    # 4. Save the updated state back to the file
-    save_data(updated_state)
-    
-    # 5. Prepare response data
-    response_data = updated_state
+        # 3. Update the state (history, alerts, risk messages)
+        updated_state = update_state_with_current_data(state, new_sensor_data)
+        # 4. Save the updated state back to the file
+        save_data(updated_state)
+        # 5. Prepare response data
+        response_data = updated_state
     
     # Ensure current data exists before trying to append message
     if 'current' in response_data:
-        if USE_DUMMY_DATA:
+        if state.get('mode') == 'MANUAL_STATIC':
+            response_data["current"]["ai_message"] += " (Static manual data mode)."
+        elif USE_DUMMY_DATA:
             response_data["current"]["ai_message"] += " (Simulated sensor data - DUMMY MODE)."
         else:
             response_data["current"]["ai_message"] += " (Live or fallback sensor data)."
