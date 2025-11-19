@@ -1,7 +1,7 @@
 {
     "current": {
-        "rainfall_mm": 0.0,
-        "water_level_cm": 0.0,
+        "rainfall_mm": 1453.0,
+        "water_level_cm": 2.96,
         "temperature_c": 0.0,
         "ai_risk": "Low",
         "ai_message": "Water level is normal. System operating within safe parameters.",
@@ -9,28 +9,28 @@
     },
     "history": {
         "labels": [
-            "12:06",
-            "12:06",
-            "12:06",
-            "12:06",
             "12:07",
-            "12:07"
+            "16:08",
+            "16:08",
+            "16:08",
+            "16:08",
+            "16:09"
         ],
         "rainfall": [
             0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0
+            1453.0,
+            1453.0,
+            1453.0,
+            1453.0,
+            1453.0
         ],
         "water_level": [
             0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0
+            2.96,
+            2.96,
+            2.96,
+            2.96,
+            2.96
         ]
     },
     "alerts": [
