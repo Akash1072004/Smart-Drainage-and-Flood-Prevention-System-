@@ -168,10 +168,10 @@ def calculate_ai_risk(water_level):
     """
     Calculates the AI risk status based on the water level.
     """
-    if water_level > 9:
+    if water_level > 30:
         risk = "High"
         message = "Critical water level detected. Immediate action required."
-    elif 6 <= water_level <= 9:
+    elif 20 <= water_level <= 30:
         risk = "Moderate"
         message = "Water level is elevated. Monitor closely."
     else:
