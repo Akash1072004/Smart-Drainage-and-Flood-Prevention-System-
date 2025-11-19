@@ -30,7 +30,7 @@
         <a href="#dashboard" class="nav-link active" data-page="dashboard">🏠 Dashboard</a>
         <a href="#rainfall" class="nav-link" data-page="rainfall">🌧️ Rainfall Data</a>
         <a href="#waterlevel" class="nav-link" data-page="waterlevel">🌊 Water Level Data</a>
-        <a href="#soilmoisture" class="nav-link" data-page="soilmoisture">💧 Soil Moisture Data</a>
+        <a href="#flowrate" class="nav-link" data-page="flowrate">💧 Flow Rate Data</a>
         <a href="#temperature" class="nav-link" data-page="temperature">🌡️ Temperature Data</a>
     </nav>
     <main class="dashboard-container">
@@ -58,12 +58,12 @@
                         <span class="unit">cm</span>
                     </div>
                 </div>
-                <div class="card data-card soil-card">
-                    <div class="card-animation-bg soil-animation-bg"></div>
+                <div class="card data-card flow-card">
+                    <div class="card-animation-bg flow-animation-bg"></div>
                     <div class="card-content">
-                        <h3>Soil Moisture 💧</h3>
-                        <p id="soil" class="data-value">--</p>
-                        <span class="unit">%</span>
+                        <h3>Flow Rate 💧</h3>
+                        <p id="flow" class="data-value">--</p>
+                        <span class="unit">ml/min</span>
                     </div>
                 </div>
                 <div class="card data-card temp-card">
@@ -74,14 +74,19 @@
                         <span class="unit">°C</span>
                     </div>
                 </div>
-                <!-- AI Prediction Panel -->
-                <div id="prediction-panel" class="card prediction-panel">
-                    <h2>Flood Forecast 🔮</h2>
+            </section>
+
+            <!-- AI Prediction Section (Separated from Data Cards) -->
+            <section class="prediction-section">
+                <div id="prediction-card" class="card prediction-card">
+                    <h2>Flood Forecast (Next Reading) 🔮</h2>
                     <div class="forecast-details">
-                        <p>Risk Status: <span id="ai-risk-status" class="risk-status">--</span></p>
-                        <p>Predicted Level: <span id="ai-forecast-metric" class="forecast-metric">--</span></p>
+                        <p>Predicted Water Level: <span id="ai-forecast-metric" class="forecast-metric">--</span></p>
+                        <p>Predicted Risk: <span id="ai-risk-status" class="risk-status">--</span></p>
                     </div>
-                    <p id="ai-recommendation-msg" class="recommendation-msg">Awaiting analysis...</p>
+                    <div class="prediction-message-box">
+                        <p id="ai-recommendation-msg" class="recommendation-msg">Awaiting analysis...</p>
+                    </div>
                 </div>
             </section>
 
@@ -188,29 +193,29 @@
             </section>
         </template>
         
-        <!-- Soil Moisture Page Template (New) -->
-        <template id="soilmoisture-template">
+        <!-- Flow Rate Page Template (New) -->
+        <template id="flowrate-template">
             <section class="full-page-data-section">
-                <h1>💧 Detailed Soil Moisture Data</h1>
-                <p>This page shows comprehensive, dynamic soil moisture data, which is a key indicator for ground saturation and runoff potential.</p>
+                <h1>💧 Detailed Flow Rate Data</h1>
+                <p>This page shows comprehensive, dynamic flow rate data, which is a key indicator for drainage system performance and flood risk.</p>
                 <div class="card chart-card full-width-chart">
-                    <h2>Soil Moisture History (Last 7 Days)</h2>
-                    <canvas id="fullSoilChart"></canvas>
+                    <h2>Flow Rate History (Last 7 Days)</h2>
+                    <canvas id="fullFlowChart"></canvas>
                 </div>
-                <div class="card data-card soil-card">
-                    <div class="card-animation-bg soil-animation-bg"></div>
+                <div class="card data-card flow-card">
+                    <div class="card-animation-bg flow-animation-bg"></div>
                     <div class="card-content">
-                        <h3>Current Moisture</h3>
-                        <p id="currentSoilMoisture" class="data-value">--</p>
-                        <span class="unit">%</span>
+                        <h3>Current Flow Rate</h3>
+                        <p id="currentFlowRate" class="data-value">--</p>
+                        <span class="unit">ml/min</span>
                     </div>
                 </div>
-                <div class="card data-card soil-card">
-                    <div class="card-animation-bg soil-animation-bg"></div>
+                <div class="card data-card flow-card">
+                    <div class="card-animation-bg flow-animation-bg"></div>
                     <div class="card-content">
-                        <h3>Saturation Level</h3>
-                        <p id="soilSaturation" class="data-value">--</p>
-                        <span class="unit">%</span>
+                        <h3>Average Flow Rate</h3>
+                        <p id="avgFlowRate" class="data-value">--</p>
+                        <span class="unit">ml/min</span>
                     </div>
                 </div>
             </section>

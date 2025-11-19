@@ -8,7 +8,7 @@ const HISTORY_ENDPOINTS = {
     rainfall: "http://127.0.0.1:5000/api/rainfall",
     waterlevel: "http://127.0.0.1:5000/api/waterlevel",
     temperature: "http://127.0.0.1:5000/api/temperature",
-    soilmoisture: "http://127.0.0.1:5000/api/soilmoisture" // New Endpoint
+    flowrate: "http://127.0.0.1:5000/api/flowrate" // New Endpoint
 };
 
 // Mock Geocoding data for demonstration
@@ -26,7 +26,7 @@ let waterChartInstance;
 let fullRainChartInstance;
 let fullWaterChartInstance;
 let fullTempChartInstance;
-let fullSoilChartInstance; // New Chart Instance
+let fullFlowChartInstance; // New Chart Instance
 let searchMarker; // Marker for user-searched location
 let currentData; // Global variable to hold the latest fetched data
 let refreshIntervalId; // To store the ID of the polling interval
@@ -90,10 +90,9 @@ function updateSystemStatus(riskLevel) {
 }
 
 // --- Data Rendering Functions ---
-function extractPredictedLevel(message) {
-    // Extracts the first number followed by "cm"
-    const match = message.match(/(\d+\.?\d*)\s*cm/i);
-    return match ? parseFloat(match[1]) : null;
+function getPredictedLevel(data) {
+    // Directly use the new field from the backend, which is either a number or null
+    return data.ai_predicted_level_cm !== undefined ? data.ai_predicted_level_cm : null;
 }
 
 function renderDataCards(data) {
@@ -101,7 +100,7 @@ function renderDataCards(data) {
         { id: "rain", value: data.rainfall_mm.toFixed(1) },
         { id: "water", value: data.water_level_cm.toFixed(1) },
         { id: "temp", value: data.temperature_c.toFixed(1) },
-        { id: "soil", value: data.soil_moisture.toFixed(1) } // New Soil Moisture Card
+        { id: "flow", value: data.flow_rate_mlpm.toFixed(1) } // Updated Flow Rate Card (ml/min)
     ];
 
     // 1. Update standard data cards
@@ -122,7 +121,7 @@ function renderDataCards(data) {
     const riskStatusElement = document.getElementById("ai-risk-status");
     const forecastMetricElement = document.getElementById("ai-forecast-metric");
     const recommendationMsgElement = document.getElementById("ai-recommendation-msg");
-    const predictionPanel = document.getElementById("prediction-panel");
+    const predictionCard = document.getElementById("prediction-card");
 
     // Set risk status text and class
     if (riskStatusElement) {
@@ -131,15 +130,14 @@ function renderDataCards(data) {
     }
 
     // Apply risk class to the main panel for background color
-    if (predictionPanel) {
-        predictionPanel.classList.remove('risk-low', 'risk-moderate', 'risk-high');
-        predictionPanel.classList.add(`risk-${risk.toLowerCase()}`);
+    if (predictionCard) {
+        predictionCard.classList.remove('risk-low', 'risk-moderate', 'risk-high');
+        predictionCard.classList.add(`risk-${risk.toLowerCase()}`);
     }
 
     // Extract predicted water level using helper function
-    const message = data.ai_message || 'N/A';
-    const rawPredictedLevel = extractPredictedLevel(message);
-    const predictedLevelText = rawPredictedLevel !== null ? `${rawPredictedLevel.toFixed(1)} cm` : 'N/A';
+    const rawPredictedLevel = getPredictedLevel(data);
+    const predictedLevelText = rawPredictedLevel !== null ? `${rawPredictedLevel.toFixed(1)} cm` : '--';
 
     if (forecastMetricElement) {
         forecastMetricElement.innerText = predictedLevelText;
@@ -238,7 +236,7 @@ function initializeDashboardCharts(history, current) {
     );
 
     // Water Level Chart (Dashboard) - Enhanced with Prediction
-    const predictedLevel = extractPredictedLevel(current.ai_message);
+    const predictedLevel = getPredictedLevel(current);
     const waterLabels = [...history.labels];
     const waterData = [...history.water_level];
 
@@ -282,7 +280,7 @@ function updateDashboardCharts(history, current) {
     }
 
     if (waterChartInstance) {
-        const predictedLevel = extractPredictedLevel(current.ai_message);
+        const predictedLevel = getPredictedLevel(current);
         const waterLabels = [...history.labels];
         const waterData = [...history.water_level];
         
@@ -406,25 +404,27 @@ async function initializeFullTempChart(data) {
     document.getElementById("waterTemp").innerText = (latestTemp - 2).toFixed(1);
 }
 
-async function initializeFullSoilChart(data) {
-    if (fullSoilChartInstance) fullSoilChartInstance.destroy();
+async function initializeFullFlowChart(data) {
+    if (fullFlowChartInstance) fullFlowChartInstance.destroy();
 
-    const history = await fetchData(HISTORY_ENDPOINTS.soilmoisture);
+    const history = await fetchData(HISTORY_ENDPOINTS.flowrate);
     if (!history) return;
 
     const labels = history.labels;
-    const soilData = history.data;
-    const unit = history.unit || '%';
+    const flowData = history.data;
+    const unit = history.unit || 'L/min';
 
-    fullSoilChartInstance = createChart(
-        'fullSoilChart', 'line', `Soil Moisture (${unit})`, soilData, labels,
-        'rgba(139, 69, 19, 1)', 'rgba(139, 69, 19, 0.4)', unit // Brown color for soil
+    fullFlowChartInstance = createChart(
+        'fullFlowChart', 'line', `Flow Rate (${unit})`, flowData, labels,
+        'rgba(54, 162, 235, 1)', 'rgba(54, 162, 235, 0.4)', unit // Blue color for flow
     );
 
     // Update data cards
-    const latestSoil = soilData.length > 0 ? soilData[soilData.length - 1] : data.current.soil_moisture;
-    document.getElementById("currentSoilMoisture").innerText = latestSoil.toFixed(1);
-    document.getElementById("soilSaturation").innerText = (latestSoil / 100 * 100).toFixed(1); // Mock saturation
+    const latestFlow = flowData.length > 0 ? flowData[flowData.length - 1] : data.current.flow_rate_mlpm;
+    document.getElementById("currentFlowRate").innerText = latestFlow.toFixed(1);
+    
+    const avgFlowRate = flowData.length > 0 ? (flowData.reduce((a, b) => a + b, 0) / flowData.length).toFixed(1) : data.current.flow_rate_mlpm.toFixed(1);
+    document.getElementById("avgFlowRate").innerText = avgFlowRate;
 }
 
 // --- Map Functions ---
@@ -500,8 +500,8 @@ const ROUTES = {
     'temperature': { templateId: 'temperature-template', init: (data) => {
         initializeFullTempChart(data);
     }},
-    'soilmoisture': { templateId: 'soilmoisture-template', init: (data) => { // New Route
-        initializeFullSoilChart(data);
+    'flowrate': { templateId: 'flowrate-template', init: (data) => { // New Route
+        initializeFullFlowChart(data);
     }}
 };
 
