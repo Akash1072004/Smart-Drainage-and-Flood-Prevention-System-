@@ -1,117 +1,117 @@
 {
     "current": {
-        "rainfall_mm": 5.3,
-        "water_level_cm": 65.4,
-        "temperature_c": 33.9,
-        "flow_rate_mlpm": 60742.4,
-        "ai_risk": "Moderate",
-        "ai_message": "Water level is elevated. Monitor closely. Predictive model confirms low risk.",
-        "telegram_alert_sent": "",
-        "ai_recommendation": "System stable. Monitor closely.",
-        "ai_predicted_level_cm": -89362740.3
+        "rainfall_mm": 24.8,
+        "water_level_cm": 27.8,
+        "temperature_c": 28.1,
+        "flow_rate_mlpm": 33289.6,
+        "ai_risk": "High",
+        "ai_message": "Critical water level detected. Immediate action required.",
+        "telegram_alert_sent": "\ud83d\udea8 CRITICAL HIGH RISK ALERT \ud83d\udea8\nTime: 11:26\nWater Level: 27.8 cm\nRainfall: 24.8 mm\nFlow Rate: 33289.6 ml/min\nTemperature: 28.1 \u00b0C\nRecommendation: IMMEDIATE ACTION: Critical water level detected. Initiate flood mitigation procedures.",
+        "ai_recommendation": "IMMEDIATE ACTION: Critical water level detected. Initiate flood mitigation procedures.",
+        "ai_predicted_level_cm": -95124739.0
     },
     "history": {
         "labels": [
-            "09:58",
-            "09:58",
-            "09:58",
-            "09:58",
-            "09:58",
-            "09:58"
+            "11:21",
+            "11:22",
+            "11:23",
+            "11:24",
+            "11:25",
+            "11:26"
         ],
         "rainfall": [
-            4.8,
-            4.6,
-            20.8,
-            21.7,
-            11.4,
-            5.3
+            15.2,
+            24.4,
+            1.1,
+            19.6,
+            24.0,
+            24.8
         ],
         "water_level": [
-            28.7,
-            24.6,
-            23.1,
-            14.9,
-            29.1,
-            65.4
+            40.7,
+            86.9,
+            66.6,
+            45.4,
+            27.8,
+            27.8
         ],
         "flow_rate": [
-            36658.1,
-            23711.5,
-            57116.6,
-            72163.7,
-            72689.9,
-            60742.4
+            57199.9,
+            15683.5,
+            21166.4,
+            12616.1,
+            4084.7,
+            33289.6
         ],
         "temperature": [
-            28.3,
-            26.2,
-            27.7,
-            23.2,
-            20.2,
-            33.9
+            25.2,
+            23.8,
+            24.5,
+            22.7,
+            30.9,
+            28.1
         ]
     },
     "alerts": [
         {
-            "time": "09:58",
-            "zone": "Zone 3",
-            "message": "Water level rising.",
-            "risk": "Moderate"
-        },
-        {
-            "time": "09:58",
-            "zone": "Zone 3",
-            "message": "Water level rising.",
-            "risk": "Moderate"
-        },
-        {
-            "time": "09:58",
-            "zone": "Zone 3",
-            "message": "Water level rising.",
-            "risk": "Moderate"
-        },
-        {
-            "time": "09:58",
-            "zone": "Zone 3",
-            "message": "Water level rising.",
-            "risk": "Moderate"
-        },
-        {
-            "time": "09:57",
-            "zone": "Zone 3",
-            "message": "Water level rising.",
-            "risk": "Moderate"
-        },
-        {
-            "time": "09:57",
+            "time": "11:26",
             "zone": "Zone 1",
             "message": "High flood risk detected.",
             "risk": "High"
         },
         {
-            "time": "09:57",
+            "time": "11:25",
             "zone": "Zone 1",
             "message": "High flood risk detected.",
             "risk": "High"
         },
         {
-            "time": "09:57",
-            "zone": "Zone 3",
-            "message": "Water level rising.",
-            "risk": "Moderate"
+            "time": "11:24",
+            "zone": "Zone 1",
+            "message": "High flood risk detected.",
+            "risk": "High"
         },
         {
-            "time": "09:57",
-            "zone": "Zone 3",
-            "message": "Water level rising.",
-            "risk": "Moderate"
+            "time": "11:23",
+            "zone": "Zone 1",
+            "message": "High flood risk detected.",
+            "risk": "High"
         },
         {
-            "time": "09:57",
-            "zone": "Zone 3",
-            "message": "Water level rising.",
-            "risk": "Moderate"
+            "time": "11:22",
+            "zone": "Zone 1",
+            "message": "High flood risk detected.",
+            "risk": "High"
+        },
+        {
+            "time": "11:21",
+            "zone": "Zone 1",
+            "message": "High flood risk detected.",
+            "risk": "High"
+        },
+        {
+            "time": "11:20",
+            "zone": "Zone 1",
+            "message": "High flood risk detected.",
+            "risk": "High"
+        },
+        {
+            "time": "11:20",
+            "zone": "Zone 1",
+            "message": "High flood risk detected.",
+            "risk": "High"
+        },
+        {
+            "time": "11:20",
+            "zone": "Zone 1",
+            "message": "High flood risk detected.",
+            "risk": "High"
+        },
+        {
+            "time": "11:20",
+            "zone": "Zone 1",
+            "message": "High flood risk detected.",
+            "risk": "High"
         }
     ]
 }

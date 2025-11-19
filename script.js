@@ -361,7 +361,7 @@ async function initializeFullWaterChart(data) {
 
     fullWaterChartInstance = createChart(
         'fullWaterChart', 'line', `Daily Water Level (${unit})`, waterData, labels,
-        'rgba(40, 167, 69, 1)', 'rgba(40, 167, 69, 0.4)', unit
+        'rgba(40, 68, 167, 1)', 'rgba(9, 233, 245, 0.4)', unit
     );
 
     // Update data cards
